@@ -1,0 +1,227 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard General | Spartan PC GMAO{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Header Section -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Panel de Control de Mantenimiento Preventivo</h1>
+            <p class="text-sm text-slate-500">Supervisión operativa, monitoreo de % de avance y cumplimiento contractual SLA.</p>
+        </div>
+        <div class="flex items-center space-x-2">
+            <a href="{% url 'ordenes_lista' %}?agrupar=licitacion" class="inline-flex items-center px-3.5 py-2 border border-slate-300 shadow-sm text-xs font-bold rounded-lg text-slate-700 bg-white hover:bg-slate-50">
+                <i class="fa-solid fa-layer-group mr-1.5 text-sky-600"></i> Agrupar por Licitación
+            </a>
+            <a href="{% url 'ordenes_lista' %}" class="inline-flex items-center px-3.5 py-2 border border-slate-300 shadow-sm text-xs font-bold rounded-lg text-slate-700 bg-white hover:bg-slate-50">
+                <i class="fa-solid fa-list-check mr-1.5 text-slate-500"></i> Ver Órdenes
+            </a>
+            {% if user.role == 'ADMIN' or user.role == 'COORDINADOR' or user.role == 'ALMACEN' or user.role == 'TECNICO' or user.is_superuser %}
+            <a href="{% url 'insumos_tecnicos' %}" class="inline-flex items-center px-3.5 py-2 border border-slate-300 shadow-sm text-xs font-bold rounded-lg text-slate-700 bg-white hover:bg-slate-50">
+                <i class="fa-solid fa-toolbox mr-1.5 text-sky-600"></i> {% if user.role == 'TECNICO' %}Mi Kit Insumos{% else %}Insumos Técnicos{% endif %}
+            </a>
+            {% endif %}
+            {% if user.role == 'ADMIN' or user.role == 'COORDINADOR' or user.role == 'RESPONSABLE_LICITACIONES' or user.is_superuser %}
+            <a href="{% url 'ordenes_crear' %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-xs font-bold rounded-lg text-white bg-sky-600 hover:bg-sky-700">
+                <i class="fa-solid fa-plus mr-1.5"></i> Nueva Orden Preventiva
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- KPI Metric Cards Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <!-- Card 1: Total Activos -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Equipos en Inventario</p>
+                <h3 class="text-2xl font-extrabold text-slate-900 mt-1">{{ total_equipos }}</h3>
+                <span class="text-xs text-emerald-600 font-medium flex items-center mt-1">
+                    <i class="fa-solid fa-check mr-1"></i> Amparados en Licitación
+                </span>
+            </div>
+            <div class="p-3.5 bg-blue-50 text-blue-600 rounded-xl">
+                <i class="fa-solid fa-desktop text-xl"></i>
+            </div>
+        </div>
+
+        <!-- Card 2: Órdenes Activas -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">OTs en Proceso</p>
+                <h3 class="text-2xl font-extrabold text-slate-900 mt-1">{{ total_ots_activas }}</h3>
+                <span class="text-xs text-sky-600 font-medium flex items-center mt-1">
+                    <i class="fa-solid fa-arrows-rotate mr-1"></i> {{ ots_preventivas }} prev / {{ ots_correctivas }} corr
+                </span>
+            </div>
+            <div class="p-3.5 bg-sky-50 text-sky-600 rounded-xl">
+                <i class="fa-solid fa-screwdriver-wrench text-xl"></i>
+            </div>
+        </div>
+
+        <!-- Card 3: Cumplimiento SLA -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Cumplimiento SLA</p>
+                <h3 class="text-2xl font-extrabold text-emerald-600 mt-1">98.5%</h3>
+                <span class="text-xs text-slate-500 font-medium flex items-center mt-1">
+                    Sin penalizaciones acumuladas
+                </span>
+            </div>
+            <div class="p-3.5 bg-emerald-50 text-emerald-600 rounded-xl">
+                <i class="fa-solid fa-shield-halved text-xl"></i>
+            </div>
+        </div>
+
+        <!-- Card 4: Alertas de Stock -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Almacén Refacciones</p>
+                <h3 class="text-2xl font-extrabold text-slate-900 mt-1">{{ total_refacciones }} piezas</h3>
+                <span class="text-xs {% if stock_bajo > 0 %}text-amber-600 font-semibold{% else %}text-slate-500{% endif %} flex items-center mt-1">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i> {{ stock_bajo }} bajo stock mínimo
+                </span>
+            </div>
+            <div class="p-3.5 bg-amber-50 text-amber-600 rounded-xl">
+                <i class="fa-solid fa-boxes-stacked text-xl"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Section: Bandeja de Órdenes de Trabajo Activas -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+                <h2 class="text-lg font-bold text-slate-900 flex items-center">
+                    <i class="fa-solid fa-clock-rotate-left mr-2 text-sky-600"></i> Bandeja Operativa de Órdenes de Trabajo
+                </h2>
+                <p class="text-xs text-slate-500 mt-0.5">Seguimiento de intervenciones técnicas con semáforo SLA de entrega.</p>
+            </div>
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                Mostrando {{ ordenes_recientes.count }} registros prioritarios
+            </span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+                <thead class="bg-slate-50 text-slate-600 font-semibold">
+                    <tr>
+                        <th scope="col" class="px-6 py-3">Folio OT</th>
+                        <th scope="col" class="px-6 py-3">Tipo Servicio</th>
+                        <th scope="col" class="px-6 py-3">Equipo & Serie</th>
+                        <th scope="col" class="px-6 py-3">Sede / Ubicación</th>
+                        <th scope="col" class="px-6 py-3">Técnico Asignado</th>
+                        <th scope="col" class="px-6 py-3 w-36">Avance</th>
+                        <th scope="col" class="px-6 py-3">Estatus</th>
+                        <th scope="col" class="px-6 py-3">Compromiso SLA</th>
+                        <th scope="col" class="px-6 py-3 text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 bg-white">
+                    {% for ot in ordenes_recientes %}
+                    <tr class="hover:bg-slate-50 transition">
+                        <!-- Folio -->
+                        <td class="px-6 py-4 font-mono font-bold text-sky-700 whitespace-nowrap">
+                            <a href="{% url 'orden_detalle' ot.id %}" class="hover:underline">
+                                {{ ot.numero_orden }}
+                            </a>
+                        </td>
+                        <!-- Tipo -->
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if ot.tipo_servicio == 'PREVENTIVO' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+                                    <i class="fa-solid fa-calendar-check mr-1 text-[10px]"></i> Preventivo
+                                </span>
+                            {% elif ot.tipo_servicio == 'CORRECTIVO' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                                    <i class="fa-solid fa-triangle-exclamation mr-1 text-[10px]"></i> Correctivo
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                                    Garantía
+                                </span>
+                            {% endif %}
+                        </td>
+                        <!-- Equipo -->
+                        <td class="px-6 py-4">
+                            <div class="font-medium text-slate-900">{{ ot.equipo.marca }} {{ ot.equipo.modelo }}</div>
+                            <div class="text-xs text-slate-500 font-mono">S/N: {{ ot.equipo.numero_serie }}</div>
+                        </td>
+                        <!-- Sede -->
+                        <td class="px-6 py-4 text-xs text-slate-600">
+                            <div>{{ ot.equipo.sede.nombre }}</div>
+                            <div class="text-slate-400">{{ ot.equipo.area_o_departamento|default:"Área no esp." }}</div>
+                        </td>
+                        <!-- Técnico -->
+                        <td class="px-6 py-4 text-xs text-slate-700 whitespace-nowrap">
+                            {% if ot.tecnico_asignado %}
+                                <div class="flex items-center space-x-1.5">
+                                    <span class="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-[10px]">
+                                        {{ ot.tecnico_asignado.first_name|first }}{{ ot.tecnico_asignado.last_name|first }}
+                                    </span>
+                                    <span>{{ ot.tecnico_asignado.get_full_name|default:ot.tecnico_asignado.username }}</span>
+                                </div>
+                            {% else %}
+                                <span class="text-amber-600 font-medium italic">Sin Asignar</span>
+                            {% endif %}
+                        </td>
+                        <!-- Porcentaje de Avance -->
+                        <td class="px-6 py-4">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                                    <div class="h-2 rounded-full {% if ot.porcentaje_avance == 100 %}bg-emerald-600{% elif ot.porcentaje_avance >= 70 %}bg-sky-600{% elif ot.porcentaje_avance >= 40 %}bg-amber-500{% else %}bg-indigo-500{% endif %}" style="width: {{ ot.porcentaje_avance }}%"></div>
+                                </div>
+                                <span class="font-mono text-xs font-bold text-slate-700">{{ ot.porcentaje_avance }}%</span>
+                            </div>
+                        </td>
+                        <!-- Estatus -->
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                {% if ot.estatus == 'CERRADA_CONFORME' %}bg-green-100 text-green-800
+                                {% elif ot.estatus == 'PENDIENTE_VALIDACION' %}bg-sky-100 text-sky-800
+                                {% elif ot.estatus == 'EN_EJECUCION' or ot.estatus == 'EN_DIAGNOSTICO' %}bg-amber-100 text-amber-800
+                                {% elif ot.estatus == 'RECHAZADA' %}bg-red-100 text-red-800
+                                {% else %}bg-slate-100 text-slate-800{% endif %}">
+                                {{ ot.get_estatus_display }}
+                            </span>
+                        </td>
+                        <!-- SLA -->
+                        <td class="px-6 py-4 text-xs whitespace-nowrap">
+                            {% if ot.estatus == 'CERRADA_CONFORME' %}
+                                <span class="text-emerald-600 font-semibold flex items-center">
+                                    <i class="fa-solid fa-circle-check mr-1"></i> Concluida en SLA
+                                </span>
+                            {% elif ot.esta_vencida %}
+                                <span class="text-red-600 font-bold flex items-center animate-pulse">
+                                    <i class="fa-solid fa-triangle-exclamation mr-1"></i> Vencida SLA
+                                </span>
+                            {% else %}
+                                <span class="text-slate-700 flex items-center">
+                                    <i class="fa-regular fa-clock mr-1 text-slate-400"></i> {{ ot.fecha_estimada_entrega|date:"d/m/Y H:i" }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <!-- Acciones -->
+                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                            <a href="{% url 'orden_detalle' ot.id %}" class="inline-flex items-center px-2.5 py-1.5 border border-sky-300 text-xs font-semibold rounded text-sky-700 bg-sky-50 hover:bg-sky-100 transition shadow-sm" title="Ver Detalle y Reporte Técnico Oficial">
+                                <i class="fa-solid fa-file-invoice mr-1"></i> Reporte
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="px-6 py-10 text-center text-slate-500">
+                            <i class="fa-solid fa-clipboard-check text-3xl text-slate-300 mb-2 block"></i>
+                            No hay órdenes de trabajo activas en este momento.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

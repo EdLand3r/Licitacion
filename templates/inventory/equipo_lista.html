@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}Inventario de Cómputo | Spartan PC{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Inventario de Equipos de Cómputo</h1>
+            <p class="text-sm text-slate-500">Padrón de activos amparados bajo licitación con detalle de arquitectura de hardware.</p>
+        </div>
+        <div class="text-xs text-slate-500 bg-white border border-slate-200 px-3 py-2 rounded-lg shadow-sm">
+            Total activos registrados: <strong class="text-slate-900">{{ equipos.count }}</strong>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for eq in equipos %}
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4 hover:border-sky-300 transition">
+            <div class="flex items-start justify-between">
+                <div>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-sky-100 text-sky-800">
+                        {{ eq.get_tipo_equipo_display }}
+                    </span>
+                    <h3 class="font-bold text-slate-900 text-lg mt-1">{{ eq.marca }} {{ eq.modelo }}</h3>
+                    <p class="text-xs font-mono text-slate-500">S/N: {{ eq.numero_serie }}</p>
+                </div>
+                <span class="inline-block w-3 h-3 rounded-full {% if eq.estatus_operativo == 'OPERATIVO' %}bg-emerald-500{% elif eq.estatus_operativo == 'EN_MANTENIMIENTO' %}bg-amber-500 animate-pulse{% else %}bg-red-500{% endif %}" title="{{ eq.get_estatus_operativo_display }}"></span>
+            </div>
+
+            <!-- Ubicación y Custodio -->
+            <div class="text-xs text-slate-600 bg-slate-50 rounded-lg p-2.5 space-y-1">
+                <div><strong>Sede:</strong> {{ eq.sede.nombre }}</div>
+                <div><strong>Área:</strong> {{ eq.area_o_departamento|default:"Área no especificada" }}</div>
+                <div><strong>Custodio:</strong> {{ eq.usuario_asignado_nombre|default:"Sin asignar" }}</div>
+            </div>
+
+            <!-- Hardware Specs -->
+            {% if eq.especificaciones %}
+            <div class="text-xs text-slate-700 border-t border-slate-100 pt-3 space-y-1">
+                <div class="flex items-center text-slate-800 font-medium">
+                    <i class="fa-solid fa-microchip w-4 text-sky-600 mr-1.5"></i>
+                    <span>{{ eq.especificaciones.cpu_marca_modelo|truncatechars:35 }}</span>
+                </div>
+                <div class="flex items-center text-slate-600">
+                    <i class="fa-solid fa-memory w-4 text-slate-400 mr-1.5"></i>
+                    <span>{{ eq.especificaciones.ram_capacidad_gb }} GB {{ eq.especificaciones.get_ram_tecnologia_display }}</span>
+                </div>
+                <div class="flex items-center text-slate-600">
+                    <i class="fa-solid fa-hard-drive w-4 text-slate-400 mr-1.5"></i>
+                    <span>{{ eq.especificaciones.almacenamiento_capacidad_gb }} GB {{ eq.especificaciones.get_almacenamiento_tipo_display }}</span>
+                </div>
+                <div class="flex items-center text-slate-600">
+                    <i class="fa-brands fa-windows w-4 text-slate-400 mr-1.5"></i>
+                    <span>{{ eq.especificaciones.sistema_operativo }}</span>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Historial de OTs -->
+            <div class="border-t border-slate-100 pt-3 flex items-center justify-between text-xs">
+                <span class="text-slate-500 font-medium">
+                    <i class="fa-solid fa-clock-rotate-left mr-1"></i> {{ eq.ordenes_trabajo.count }} intervenciones
+                </span>
+                <span class="font-semibold text-emerald-600">
+                    {{ eq.get_estatus_operativo_display }}
+                </span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}

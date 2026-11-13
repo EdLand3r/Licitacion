@@ -1,0 +1,453 @@
+{% extends 'base.html' %}
+
+{% block title %}Reporte de Mantenimiento Preventivo {{ orden.numero_orden }} | Spartan PC{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Estilo de edición manual y preparación de impresión */
+    .report-input {
+        background-color: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        padding: 4px 8px;
+        width: 100%;
+        font-size: 0.85rem;
+        transition: all 0.2s;
+    }
+    .report-input:focus {
+        background-color: #ffffff;
+        border-color: #0284c7;
+        outline: 2px solid rgba(2, 132, 199, 0.2);
+    }
+    .report-textarea {
+        background-color: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        padding: 6px 8px;
+        width: 100%;
+        font-size: 0.85rem;
+        line-height: 1.5;
+        white-space: pre-line !important;
+        resize: vertical;
+        transition: all 0.2s;
+    }
+    .report-textarea:focus {
+        background-color: #ffffff;
+        border-color: #0284c7;
+        outline: 2px solid rgba(2, 132, 199, 0.2);
+    }
+
+    /* Reglas estrictas para exportación / impresión oficial a PDF */
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        body {
+            background: white !important;
+            color: black !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+        .report-input, .report-textarea {
+            border: none !important;
+            background: transparent !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            outline: none !important;
+            resize: none !important;
+            font-size: 0.82rem !important;
+            line-height: 1.4 !important;
+            color: #000000 !important;
+            font-family: inherit !important;
+            white-space: pre-line !important;
+        }
+        .report-card {
+            border: 2px solid #000000 !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-5xl mx-auto">
+
+    <!-- Barra de Control y Acciones Superiores (No Print) -->
+    <div class="no-print bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
+            <a href="{% url 'ordenes_lista' %}" class="inline-flex items-center text-sm font-semibold text-slate-600 hover:text-slate-900">
+                <i class="fa-solid fa-arrow-left mr-2"></i> Volver a Órdenes
+            </a>
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold
+                    {% if orden.estatus == 'CERRADA_CONFORME' %}bg-emerald-100 text-emerald-800
+                    {% elif orden.estatus == 'PENDIENTE_VALIDACION' %}bg-sky-100 text-sky-800
+                    {% else %}bg-amber-100 text-amber-800{% endif %}">
+                    Estatus: {{ orden.get_estatus_display }}
+                </span>
+
+                {% if puede_editar %}
+                <button type="submit" form="form-reporte-preventivo" name="accion" value="guardar" class="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition">
+                    <i class="fa-solid fa-floppy-disk mr-1.5"></i> Guardar Cambios del Reporte
+                </button>
+                {% endif %}
+
+                <button type="button" onclick="window.print()" class="inline-flex items-center px-4 py-2 bg-brand-800 hover:bg-brand-900 text-white rounded-lg text-xs font-bold shadow-sm transition">
+                    <i class="fa-solid fa-print mr-1.5"></i> Imprimir Reporte Oficial (PDF)
+                </button>
+            </div>
+        </div>
+
+        <!-- Barra de Porcentaje de Avance Interactiva (SRS IEEE 830) -->
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-chart-line text-emerald-600"></i>
+                    <span class="text-sm font-bold text-slate-800">Porcentaje de Avance del Mantenimiento:</span>
+                    <span class="text-sm font-extrabold font-mono text-emerald-700">{{ orden.porcentaje_avance }}%</span>
+                </div>
+                <span class="text-xs text-slate-500 font-medium">
+                    {% if orden.porcentaje_avance == 100 %}Mantenimiento Preventivo Finalizado{% else %}Mantenimiento en Ejecución{% endif %}
+                </span>
+            </div>
+
+            <div class="w-full bg-slate-200 rounded-full h-3 overflow-hidden shadow-inner">
+                <div class="h-3 rounded-full transition-all duration-500 font-mono text-[9px] text-white flex items-center justify-center font-bold
+                    {% if orden.porcentaje_avance == 100 %}bg-emerald-600
+                    {% elif orden.porcentaje_avance >= 70 %}bg-sky-600
+                    {% elif orden.porcentaje_avance >= 40 %}bg-amber-500
+                    {% else %}bg-indigo-500{% endif %}"
+                    style="width: {{ orden.porcentaje_avance }}%">
+                </div>
+            </div>
+
+            {% if puede_editar %}
+            <div class="mt-3 text-xs text-slate-500 flex items-center">
+                <i class="fa-solid fa-circle-info mr-1 text-sky-600"></i>
+                <span>Modo de edición manual habilitado: Puede ajustar los campos técnicos directamente en la tabla y hacer clic en <strong>Guardar Cambios</strong> antes de imprimir.</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- FORMULARIO EDITABLE Y REPORTE DE MANTENIMIENTO: ESTRUCTURA EXACTA 'DOCUMENTO SIN TÍTULO' -->
+    <form id="form-reporte-preventivo" method="post" action="{% url 'orden_detalle' orden.id %}" class="bg-white border-2 border-slate-900 shadow-xl p-6 sm:p-10 font-sans report-card text-slate-900">
+        {% csrf_token %}
+
+        <!-- Encabezado Fijo Exclusivo Preventivo (Requerimiento 2) -->
+        <div class="text-center pb-3">
+            <h1 class="text-xl sm:text-2xl font-black tracking-wider uppercase text-slate-900">
+                REPORTE DE MANTENIMIENTO - PREVENTIVO
+            </h1>
+            <h2 class="text-xs sm:text-sm font-bold tracking-widest text-slate-600 uppercase mt-0.5">
+                DIAGNÓSTICO TÉCNICO COMERCIAL
+            </h2>
+        </div>
+
+        <!-- Tabla 1: Metadatos Iniciales -->
+        <table class="w-full border-collapse border border-slate-900 text-xs sm:text-sm mt-3">
+            <tr>
+                <td class="border border-slate-900 p-2 font-bold w-1/3">
+                    Fecha de recibido: <span class="font-normal">{{ orden.fecha_recibido|date:"d/m/Y H:i" }}</span>
+                </td>
+                <td class="border border-slate-900 p-2 font-bold w-1/3">
+                    Fecha de entrega: <span class="font-normal">{{ orden.fecha_real_entrega|date:"d/m/Y H:i"|default:orden.fecha_estimada_entrega|date:"d/m/Y H:i" }}</span>
+                </td>
+                <td class="border border-slate-900 p-2 font-bold w-1/3 font-mono">
+                    Nº reporte / Folio: <span class="font-bold text-sky-900">{{ orden.numero_orden }}</span>
+                </td>
+            </tr>
+        </table>
+
+        <!-- Sección: Datos del técnico encargado (Editable) -->
+        <table class="w-full border-collapse border border-slate-900 text-xs sm:text-sm mt-0 border-t-0">
+            <thead>
+                <tr class="bg-slate-200">
+                    <th colspan="2" class="border border-slate-900 p-1.5 font-bold uppercase text-center text-xs">
+                        Datos del técnico encargado
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="border border-slate-900 p-2 w-2/3">
+                        <label class="font-bold block text-xs">Nombres de los Técnicos:</label>
+                        {% if puede_editar %}
+                            <input type="text" name="tecnico_nombre" value="{{ orden.tecnico_asignado.get_full_name|default:orden.tecnico_asignado.username|default:'Michel Lizbeth Morales Gómez' }}" class="report-input mt-1">
+                        {% else %}
+                            <span class="text-slate-800">{{ orden.tecnico_asignado.get_full_name|default:orden.tecnico_asignado.username }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="border border-slate-900 p-2 w-1/3">
+                        <label class="font-bold block text-xs">Teléfono / Extensión:</label>
+                        {% if puede_editar %}
+                            <input type="text" name="telefono_extension_tecnico" value="{{ orden.telefono_extension_tecnico }}" placeholder="614-987-6543 Ext. 104" class="report-input mt-1">
+                        {% else %}
+                            <span class="text-slate-800">{{ orden.telefono_extension_tecnico|default:'614-987-6543 Ext. 104' }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" class="border border-slate-900 p-2">
+                        <label class="font-bold block text-xs">Domicilio del laboratorio:</label>
+                        {% if puede_editar %}
+                            <input type="text" name="domicilio_laboratorio" value="{{ orden.domicilio_laboratorio }}" class="report-input mt-1">
+                        {% else %}
+                            <span class="text-slate-800">{{ orden.domicilio_laboratorio }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Sección: Datos del cliente -->
+        <table class="w-full border-collapse border border-slate-900 text-xs sm:text-sm mt-0 border-t-0">
+            <thead>
+                <tr class="bg-slate-200">
+                    <th colspan="2" class="border border-slate-900 p-1.5 font-bold uppercase text-center text-xs">
+                        Datos del cliente
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="border border-slate-900 p-2 w-2/3">
+                        <label class="font-bold block text-xs">Nombre / Razón Social:</label>
+                        <span class="text-slate-900 font-semibold">{{ orden.equipo.contrato.dependencia_cliente }}</span>
+                    </td>
+                    <td class="border border-slate-900 p-2 w-1/3">
+                        <label class="font-bold block text-xs">Teléfono / WhatsApp:</label>
+                        {% if puede_editar %}
+                            <input type="text" name="telefono_whatsapp_cliente" value="{{ orden.telefono_whatsapp_cliente }}" placeholder="982-123-4567" class="report-input mt-1">
+                        {% else %}
+                            <span class="text-slate-800">{{ orden.telefono_whatsapp_cliente|default:'982-123-4567' }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" class="border border-slate-900 p-2 font-bold">
+                        Domicilio del cliente: <span class="font-normal">{{ orden.equipo.sede.direccion }} ({{ orden.equipo.sede.nombre }} &bull; {{ orden.equipo.area_o_departamento|default:"Área de Cómputo" }})</span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Sección: Descripción del equipo (Hardware) -->
+        <table class="w-full border-collapse border border-slate-900 text-xs sm:text-sm mt-0 border-t-0">
+            <thead>
+                <tr class="bg-slate-200">
+                    <th colspan="6" class="border border-slate-900 p-1.5 font-bold uppercase text-center text-xs">
+                        Descripción del equipo
+                    </th>
+                </tr>
+                <tr class="text-center font-bold bg-slate-50 text-[11px] sm:text-xs">
+                    <th class="border border-slate-900 p-1.5 w-1/6">Equipo<br><span class="font-normal text-[10px]">(Tipo / Marca / Mod.)</span></th>
+                    <th class="border border-slate-900 p-1.5 w-1/6">Tarjeta Madre</th>
+                    <th class="border border-slate-900 p-1.5 w-1/6">Sistema Operativo</th>
+                    <th class="border border-slate-900 p-1.5 w-1/6">Procesador</th>
+                    <th class="border border-slate-900 p-1.5 w-1/6">Memoria RAM</th>
+                    <th class="border border-slate-900 p-1.5 w-1/6">Almacenamiento</th>
+                </tr>
+            </thead>
+            <tbody class="text-center text-xs">
+                <tr>
+                    <td class="border border-slate-900 p-2">
+                        <strong class="block">{{ orden.equipo.get_tipo_equipo_display }}</strong>
+                        {{ orden.equipo.marca }} {{ orden.equipo.modelo }}<br>
+                        <span class="text-[10px] font-mono font-bold text-sky-800">S/N: {{ orden.equipo.numero_serie }}</span>
+                    </td>
+                    <td class="border border-slate-900 p-2">
+                        {{ orden.equipo.especificaciones.motherboard_marca_modelo|default:"Asus Essentials H61-M" }}
+                    </td>
+                    <td class="border border-slate-900 p-2">
+                        {{ orden.equipo.especificaciones.sistema_operativo|default:"Windows 11 Pro 64b" }}
+                    </td>
+                    <td class="border border-slate-900 p-2">
+                        {{ orden.equipo.especificaciones.cpu_marca_modelo|default:"Intel Pentium G3250" }}
+                    </td>
+                    <td class="border border-slate-900 p-2 font-bold">
+                        {{ orden.equipo.especificaciones.ram_capacidad_gb }} GB {{ orden.equipo.especificaciones.get_ram_tecnologia_display }}
+                    </td>
+                    <td class="border border-slate-900 p-2">
+                        {{ orden.equipo.especificaciones.almacenamiento_capacidad_gb }} GB {{ orden.equipo.especificaciones.get_almacenamiento_tipo_display }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Sección: Diagnóstico del equipo adaptado a Preventivo (Requerimientos 1, 2 y 3) -->
+        <table class="w-full border-collapse border border-slate-900 text-xs sm:text-sm mt-0 border-t-0">
+            <thead>
+                <tr class="bg-slate-200">
+                    <th colspan="3" class="border border-slate-900 p-1.5 font-bold uppercase text-center text-xs">
+                        Diagnóstico del equipo
+                    </th>
+                </tr>
+                <tr class="text-center font-bold bg-slate-50 text-[11px] sm:text-xs">
+                    <th class="border border-slate-900 p-2 w-1/3">Actividad / Punto de Revisión</th>
+                    <th class="border border-slate-900 p-2 w-1/3">Hallazgos / Condición Encontrada</th>
+                    <th class="border border-slate-900 p-2 w-1/3">Solución / Trabajo Realizado</th>
+                </tr>
+            </thead>
+            <tbody class="align-top text-xs leading-relaxed">
+                <tr>
+                    <!-- Columna 1: Actividad / Punto de Revisión -->
+                    <td class="border border-slate-900 p-2 bg-white">
+                        {% if puede_editar %}
+                            <textarea name="diagnostico_preliminar" rows="6" class="report-textarea" placeholder="Puntos de revisión física y lógica programados...">{{ orden.diagnostico_preliminar }}</textarea>
+                        {% else %}
+                            <div style="white-space: pre-line;">{{ orden.diagnostico_preliminar }}</div>
+                        {% endif %}
+                    </td>
+                    <!-- Columna 2: Hallazgos / Condición Encontrada (Sin texto '---') -->
+                    <td class="border border-slate-900 p-2 bg-white">
+                        {% if puede_editar %}
+                            <textarea name="causa_raiz" rows="6" class="report-textarea" placeholder="Condición observada: acumulación de polvo, pasta térmica, etc...">{{ orden.causa_raiz }}</textarea>
+                        {% else %}
+                            <div style="white-space: pre-line;">{{ orden.causa_raiz }}</div>
+                        {% endif %}
+                    </td>
+                    <!-- Columna 3: Solución / Trabajo Realizado (Renderizado limpio de saltos de línea \n) -->
+                    <td class="border border-slate-900 p-2 bg-white">
+                        {% if puede_editar %}
+                            <textarea name="trabajo_realizado" rows="6" class="report-textarea" placeholder="Paso a paso de las acciones preventivas realizadas...">{{ orden.trabajo_realizado }}</textarea>
+                        {% else %}
+                            <div style="white-space: pre-line;">{{ orden.trabajo_realizado }}</div>
+                        {% endif %}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Sección: Observaciones / Recomendaciones (Editable y con saltos limpios) -->
+        <table class="w-full border-collapse border border-slate-900 text-xs sm:text-sm mt-0 border-t-0">
+            <thead>
+                <tr class="bg-slate-200">
+                    <th class="border border-slate-900 p-1.5 font-bold uppercase text-center text-xs">
+                        Observaciones / Recomendaciones
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="border border-slate-900 p-3 bg-white">
+                        {% if puede_editar %}
+                            <textarea name="observaciones_recomendaciones" rows="4" class="report-textarea" placeholder="Recomendaciones preventivas al usuario, cuidados del equipo...">{{ orden.observaciones_recomendaciones }}</textarea>
+                            <div class="mt-2 flex items-center justify-between text-xs text-slate-500">
+                                <div class="flex items-center space-x-2">
+                                    <label class="font-bold">Ajustar Porcentaje de Avance:</label>
+                                    <input type="number" name="porcentaje_avance" min="0" max="100" value="{{ orden.porcentaje_avance }}" class="w-16 px-2 py-0.5 border border-slate-300 rounded font-mono font-bold text-center">
+                                    <span>%</span>
+                                </div>
+                                <span>Licitación: {{ orden.equipo.contrato.numero_licitacion }}</span>
+                            </div>
+                        {% else %}
+                            <div style="white-space: pre-line;">{{ orden.observaciones_recomendaciones }}</div>
+                        {% endif %}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Sección: Firmas del Técnico y del Cliente (50% y 50%) -->
+        <table class="w-full border-collapse border border-slate-900 text-xs sm:text-sm mt-0 border-t-0">
+            <tr>
+                <!-- Firma del Técnico -->
+                <td class="border border-slate-900 p-4 w-1/2 align-top h-36">
+                    <span class="font-bold block mb-2">Firma del técnico:</span>
+                    <div class="flex flex-col items-center justify-center pt-2">
+                        {% for f in orden.firmas.all %}
+                            {% if f.tipo_firmante == 'TECNICO' %}
+                                <div class="font-mono text-xs font-bold text-sky-800 text-center">
+                                    [ SELLO DIGITAL / APROBACIÓN TÉCNICA ]
+                                    <div class="text-[11px] text-slate-700 font-normal mt-1">{{ f.nombre_firmante }}</div>
+                                    <div class="text-[9px] text-slate-400">{{ f.fecha_firmado|date:"d/m/Y H:i:s" }}</div>
+                                </div>
+                            {% endif %}
+                        {% empty %}
+                            <div class="text-center pt-8 text-slate-400 italic text-xs">
+                                __________________________________________<br>
+                                {{ orden.tecnico_asignado.get_full_name|default:orden.tecnico_asignado.username|default:"Firma del Técnico Encargado" }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </td>
+
+                <!-- Firma del Cliente -->
+                <td class="border border-slate-900 p-4 w-1/2 align-top h-36">
+                    <span class="font-bold block mb-2">Firma del cliente:</span>
+                    <div class="flex flex-col items-center justify-center pt-2">
+                        {% for f in orden.firmas.all %}
+                            {% if f.tipo_firmante == 'ENLACE_CLIENTE' %}
+                                <div class="font-mono text-xs font-bold text-emerald-800 text-center">
+                                    [ CONFORMIDAD Y RECEPCIÓN CLIENTE ]
+                                    <div class="text-[11px] text-slate-700 font-normal mt-1">{{ f.nombre_firmante }}</div>
+                                    <div class="text-[9px] text-slate-400">{{ f.fecha_firmado|date:"d/m/Y H:i:s" }}</div>
+                                </div>
+                            {% endif %}
+                        {% empty %}
+                            {% if puede_firmar_cliente %}
+                                <div class="no-print text-center pt-4">
+                                    <p class="text-xs text-slate-600 mb-2">¿Revisó el servicio y está de acuerdo con los trabajos?</p>
+                                    <button type="submit" form="form-reporte-preventivo" name="accion" value="firmar_cliente" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-bold shadow transition">
+                                        <i class="fa-solid fa-signature mr-1.5"></i> Firmar de Conformidad
+                                    </button>
+                                </div>
+                            {% else %}
+                                <div class="text-center pt-8 text-slate-400 italic text-xs">
+                                    __________________________________________<br>
+                                    {{ orden.equipo.sede.enlace_responsable.get_full_name|default:"Firma de Conformidad del Cliente" }}
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+        <!-- Pie Institucional Legal -->
+        <div class="text-center text-[10px] text-slate-500 mt-4 border-t border-slate-300 pt-2">
+            Comprobante oficial de cumplimiento de mantenimiento preventivo TI &bull; Licitación {{ orden.equipo.contrato.numero_licitacion }} &bull; Contrato {{ orden.equipo.contrato.numero_contrato }}
+        </div>
+
+    </form>
+
+    <!-- Lista de Verificación / Checklist Preventivo Interactivo (No Print) -->
+    {% if orden.checklists.exists and puede_editar %}
+    <div class="no-print bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div>
+                <h3 class="font-bold text-slate-900 text-base flex items-center">
+                    <i class="fa-solid fa-list-check mr-2 text-emerald-600"></i> Protocolo de Verificación Preventiva (SRS IEEE 830 / ITSE)
+                </h3>
+                <p class="text-xs text-slate-500">Marque las actividades concluidas para sincronizar automáticamente el porcentaje de avance.</p>
+            </div>
+            <span class="text-xs font-mono font-bold px-2.5 py-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
+                Avance calculado: {{ orden.porcentaje_avance }}%
+            </span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            {% for item in orden.checklists.all %}
+            <form method="post" action="{% url 'orden_actualizar_avance' orden.id %}" class="flex items-center justify-between p-3 rounded-lg border transition {% if item.realizado %}bg-emerald-50/50 border-emerald-200{% else %}bg-slate-50 border-slate-200 hover:border-sky-300{% endif %}">
+                {% csrf_token %}
+                <input type="hidden" name="checklist_id" value="{{ item.id }}">
+                <div class="flex items-start space-x-2.5">
+                    <span class="mt-0.5 font-bold {% if item.realizado %}text-emerald-700{% else %}text-slate-400{% endif %}">
+                        {% if item.realizado %}<i class="fa-solid fa-circle-check text-sm"></i>{% else %}<i class="fa-regular fa-circle text-sm"></i>{% endif %}
+                    </span>
+                    <span class="text-slate-800 font-medium leading-snug">{{ item.tarea }}</span>
+                </div>
+                <button type="submit" class="ml-2 px-2.5 py-1 rounded text-[11px] font-bold shadow-sm transition {% if item.realizado %}bg-white border border-slate-300 text-slate-700 hover:bg-slate-100{% else %}bg-emerald-600 text-white hover:bg-emerald-700{% endif %}">
+                    {% if item.realizado %}Desmarcar{% else %}Completar{% endif %}
+                </button>
+            </form>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

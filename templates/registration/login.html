@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block title %}Iniciar Sesión | Spartan PC GMAO{% endblock %}
+
+{% block content %}
+<div class="min-h-[75vh] flex flex-col justify-center py-8 sm:px-6 lg:px-8">
+    <div class="sm:mx-auto sm:w-full sm:max-w-md text-center">
+        <div class="inline-flex p-3 bg-brand-600 text-white rounded-2xl shadow-lg mb-3">
+            <i class="fa-solid fa-server text-3xl"></i>
+        </div>
+        <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">Acceso al Sistema GMAO</h2>
+        <p class="mt-1 text-sm text-slate-500">Gestión de Mantenimientos Preventivos y Correctivos de TI</p>
+    </div>
+
+    <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div class="bg-white py-8 px-6 shadow-md rounded-2xl border border-slate-200 sm:px-10">
+            <form class="space-y-5" method="POST" action="{% url 'login' %}">
+                {% csrf_token %}
+
+                {% if form.errors %}
+                    <div class="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                        Usuario o contraseña incorrectos. Por favor intente de nuevo.
+                    </div>
+                {% endif %}
+
+                <div>
+                    <label for="id_username" class="block text-sm font-semibold text-slate-700">Nombre de Usuario</label>
+                    <div class="mt-1">
+                        <input id="id_username" name="username" type="text" required autofocus
+                            class="appearance-none block w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="id_password" class="block text-sm font-semibold text-slate-700">Contraseña</label>
+                    <div class="mt-1">
+                        <input id="id_password" name="password" type="password" required
+                            class="appearance-none block w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm">
+                    </div>
+                </div>
+
+                <div>
+                    <button type="submit"
+                        class="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition">
+                        Ingresar a la Plataforma
+                    </button>
+                </div>
+            </form>
+
+            <!-- Quick Demo Credentials Box -->
+            <div class="mt-6 pt-6 border-t border-slate-200 text-xs text-slate-600">
+                <span class="font-bold text-slate-800 block mb-2">Cuentas de demostración precargadas (7 Roles):</span>
+                <div class="space-y-1.5 font-mono text-[11px] bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <div><strong>Coordinador:</strong> <code class="text-sky-700">coordinador</code> / <code>coordinador123</code></div>
+                    <div><strong>Técnico:</strong> <code class="text-sky-700">tecnico</code> / <code>tecnico123</code></div>
+                    <div><strong>Enlace Cliente:</strong> <code class="text-sky-700">enlace</code> / <code>enlace123</code></div>
+                    <div><strong>Licitaciones:</strong> <code class="text-sky-700">licitaciones</code> / <code>licitaciones123</code></div>
+                    <div><strong>Almacén:</strong> <code class="text-sky-700">almacen</code> / <code>almacen123</code></div>
+                    <div><strong>Admin:</strong> <code class="text-sky-700">admin</code> / <code>admin123</code></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

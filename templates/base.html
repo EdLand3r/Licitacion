@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Spartan PC | GMAO TI{% endblock %}</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                            800: '#0c4a6e',
+                            900: '#082f49',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Alpine.js CDN -->
+    <script defer src="https://unpkg.com/alpinejs@3.14.3/dist/cdn.min.js"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; }
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="h-full flex flex-col font-sans text-slate-800 antialiased">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-brand-900 text-white shadow-md no-print" x-data="{ openMobile: false, openUser: false }">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo & Brand -->
+                <div class="flex items-center space-x-3">
+                    <a href="{% url 'dashboard' %}" class="flex items-center space-x-2">
+                        <div class="bg-brand-500 text-white p-2 rounded-lg shadow">
+                            <i class="fa-solid fa-server text-lg"></i>
+                        </div>
+                        <div>
+                            <span class="text-xl font-bold tracking-tight text-white">SPARTAN <span class="text-sky-400">PC</span></span>
+                            <span class="block text-[10px] text-slate-300 font-medium tracking-wider uppercase">GMAO Mantenimiento TI</span>
+                        </div>
+                    </a>
+
+                    <!-- Desktop Nav Links (Renderizado Condicional por Rol RBAC) -->
+                    <nav class="hidden md:flex ml-8 space-x-1">
+                        <a href="{% url 'dashboard' %}" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-brand-800 transition {% if request.resolver_match.url_name == 'dashboard' %}bg-brand-800 text-sky-300{% else %}text-slate-200{% endif %}">
+                            <i class="fa-solid fa-gauge-high mr-1 text-xs"></i> Dashboard
+                        </a>
+
+                        {% if user.role != 'ALMACEN' %}
+                        <a href="{% url 'ordenes_lista' %}" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-brand-800 transition {% if 'orden' in request.path %}bg-brand-800 text-sky-300{% else %}text-slate-200{% endif %}">
+                            <i class="fa-solid fa-screwdriver-wrench mr-1 text-xs"></i> {% if user.role == 'TECNICO' %}Mis Órdenes{% elif user.role == 'ENLACE' %}Órdenes Sede{% else %}Órdenes (OTs){% endif %}
+                        </a>
+                        {% endif %}
+
+                        {% if user.role != 'ALMACEN' %}
+                        <a href="{% url 'inventario_lista' %}" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-brand-800 transition {% if 'inventario' in request.path %}bg-brand-800 text-sky-300{% else %}text-slate-200{% endif %}">
+                            <i class="fa-solid fa-desktop mr-1 text-xs"></i> {% if user.role == 'ENLACE' %}Equipos Sede{% else %}Inventario Cómputo{% endif %}
+                        </a>
+                        {% endif %}
+
+                        {% if user.role == 'ADMIN' or user.role == 'ALMACEN' or user.role == 'COORDINADOR' or user.role == 'TECNICO' or user.is_superuser %}
+                        <a href="{% url 'almacen_lista' %}" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-brand-800 transition {% if 'almacen' in request.path and 'insumos' not in request.path %}bg-brand-800 text-sky-300{% else %}text-slate-200{% endif %}">
+                            <i class="fa-solid fa-boxes-stacked mr-1 text-xs"></i> Refacciones
+                        </a>
+                        <a href="{% url 'insumos_tecnicos' %}" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-brand-800 transition {% if 'insumos-tecnicos' in request.path %}bg-brand-800 text-sky-300{% else %}text-slate-200{% endif %}">
+                            <i class="fa-solid fa-toolbox mr-1 text-xs"></i> {% if user.role == 'TECNICO' %}Mi Kit Insumos{% else %}Insumos Técnicos{% endif %}
+                        </a>
+                        {% endif %}
+
+                        {% if user.role == 'ADMIN' or user.role == 'RESPONSABLE_LICITACIONES' or user.role == 'COORDINADOR' or user.is_superuser %}
+                        <a href="{% url 'contratos_lista' %}" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-brand-800 transition {% if 'contratos' in request.path %}bg-brand-800 text-sky-300{% else %}text-slate-200{% endif %}">
+                            <i class="fa-solid fa-file-contract mr-1 text-xs"></i> Contratos SLA
+                        </a>
+                        {% endif %}
+
+                        {% if user.is_superuser or user.role == 'ADMIN' %}
+                        <a href="/admin/" target="_blank" class="px-3 py-2 rounded-md text-sm font-medium text-amber-300 hover:bg-brand-800 transition">
+                            <i class="fa-solid fa-shield-halved mr-1 text-xs"></i> Admin
+                        </a>
+                        {% endif %}
+                    </nav>
+                </div>
+
+                <!-- User Profile & Status -->
+                <div class="hidden md:flex items-center space-x-4">
+                    {% if user.is_authenticated %}
+                        <div class="text-right">
+                            <div class="text-sm font-semibold text-white">{{ user.get_full_name|default:user.username }}</div>
+                            <div class="text-xs text-sky-300">
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-brand-800 border border-brand-700">
+                                    {{ user.get_role_display|default:"Usuario" }}
+                                </span>
+                            </div>
+                        </div>
+                        <form method="post" action="{% url 'logout' %}" class="inline">
+                            {% csrf_token %}
+                            <button type="submit" class="p-2 text-slate-300 hover:text-white hover:bg-brand-800 rounded-lg text-sm" title="Cerrar Sesión">
+                                <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                            </button>
+                        </form>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="bg-sky-500 hover:bg-sky-400 text-white px-3 py-1.5 rounded-lg text-sm font-medium shadow">
+                            Iniciar Sesión
+                        </a>
+                    {% endif %}
+                </div>
+
+                <!-- Mobile menu button -->
+                <div class="md:hidden flex items-center">
+                    <button @click="openMobile = !openMobile" class="p-2 text-slate-300 hover:text-white focus:outline-none">
+                        <i :class="openMobile ? 'fa-solid fa-xmark' : 'fa-solid fa-bars'" class="text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Menu Dropdown (RBAC) -->
+        <div x-show="openMobile" class="md:hidden bg-brand-950 px-2 pt-2 pb-3 space-y-1 border-t border-brand-800">
+            <a href="{% url 'dashboard' %}" class="block px-3 py-2 rounded-md text-base font-medium text-slate-200 hover:bg-brand-800">Dashboard</a>
+            {% if user.role != 'ALMACEN' %}
+            <a href="{% url 'ordenes_lista' %}" class="block px-3 py-2 rounded-md text-base font-medium text-slate-200 hover:bg-brand-800">Órdenes (OTs)</a>
+            <a href="{% url 'inventario_lista' %}" class="block px-3 py-2 rounded-md text-base font-medium text-slate-200 hover:bg-brand-800">Inventario Cómputo</a>
+            {% endif %}
+            {% if user.role == 'ADMIN' or user.role == 'ALMACEN' or user.role == 'COORDINADOR' or user.role == 'TECNICO' or user.is_superuser %}
+            <a href="{% url 'almacen_lista' %}" class="block px-3 py-2 rounded-md text-base font-medium text-slate-200 hover:bg-brand-800">Refacciones</a>
+            <a href="{% url 'insumos_tecnicos' %}" class="block px-3 py-2 rounded-md text-base font-medium text-slate-200 hover:bg-brand-800">{% if user.role == 'TECNICO' %}Mi Kit de Insumos{% else %}Insumos Técnicos{% endif %}</a>
+            {% endif %}
+            {% if user.role == 'ADMIN' or user.role == 'RESPONSABLE_LICITACIONES' or user.role == 'COORDINADOR' or user.is_superuser %}
+            <a href="{% url 'contratos_lista' %}" class="block px-3 py-2 rounded-md text-base font-medium text-slate-200 hover:bg-brand-800">Contratos SLA</a>
+            {% endif %}
+            {% if user.is_authenticated %}
+                <div class="border-t border-brand-800 pt-2 pb-1">
+                    <div class="px-3 text-xs text-sky-400 font-medium">{{ user.username }} ({{ user.get_role_display }})</div>
+                    <form method="post" action="{% url 'logout' %}" class="mt-1 px-3">
+                        {% csrf_token %}
+                        <button type="submit" class="text-sm text-red-300 hover:text-red-100">Cerrar Sesión</button>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- Subheader / Contract Context Indicator -->
+    <div class="bg-white border-b border-slate-200 px-4 sm:px-6 lg:px-8 py-2 text-xs text-slate-600 flex justify-between items-center no-print">
+        <div class="flex items-center space-x-2">
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span><strong>Licitación Activa:</strong> CT-ITSE-2026-088 (Instituto Tecnológico Superior de Escárcega)</span>
+            <span class="text-slate-300">|</span>
+            <span><strong>SLA Solución:</strong> 24h contractuales</span>
+        </div>
+        <div class="hidden sm:block text-slate-500">
+            <i class="fa-regular fa-clock mr-1"></i> Auditoría y Monitoreo en Tiempo Real
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Messages -->
+        {% if messages %}
+            <div class="mb-4 space-y-2 no-print">
+                {% for message in messages %}
+                    <div class="p-4 rounded-lg text-sm flex items-center justify-between {% if message.tags == 'error' %}bg-red-50 text-red-800 border border-red-200{% elif message.tags == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200{% else %}bg-sky-50 text-sky-800 border border-sky-200{% endif %}">
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid {% if message.tags == 'error' %}fa-circle-xmark{% elif message.tags == 'success' %}fa-circle-check{% else %}fa-circle-info{% endif %}"></i>
+                            <span>{{ message }}</span>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-auto no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs text-slate-500">
+            <span>Sistema GMAO Spartan PC &copy; 2026 &mdash; Basado en Requerimientos de Licitación TI &bull; ITSE</span>
+        </div>
+    </footer>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

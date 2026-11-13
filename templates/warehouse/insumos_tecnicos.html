@@ -1,0 +1,538 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestión de Insumos por Técnico | Spartan PC{% endblock %}
+
+{% block content %}
+<div class="space-y-6" x-data="{
+    showDotarModal: false,
+    showDevolverModal: false,
+    showConsumoModal: false,
+    selectedInsumoId: '',
+    selectedInsumoNombre: '',
+    selectedMaxDisp: 1
+}">
+
+    <!-- Header Section -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-slate-200">
+        <div>
+            <div class="flex items-center space-x-2">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold bg-sky-100 text-sky-800">
+                    <i class="fa-solid fa-toolbox mr-1.5"></i> Control de Campo
+                </span>
+                <span class="text-xs text-slate-400">|</span>
+                <span class="text-xs text-slate-500 font-medium">SRS IEEE 830 - Gestión de Suministros</span>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight mt-1">
+                {% if es_tecnico %}
+                    Mi Kit de Insumos y Herramientas
+                {% else %}
+                    Gestión de Insumos por Técnico
+                {% endif %}
+            </h1>
+            <p class="text-sm text-slate-500">
+                {% if es_tecnico %}
+                    Monitoreo de consumibles asignados a tu maletín para servicios de mantenimiento preventivo.
+                {% else %}
+                    Dotación de insumos, auditoría de consumos de campo y reingreso de materiales al almacén.
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Action Buttons & Selector -->
+        <div class="flex flex-wrap items-center gap-2">
+            {% if not es_tecnico %}
+                <!-- Selector de Técnico para Supervisores/Almacén -->
+                <form method="get" action="{% url 'insumos_tecnicos' %}" class="flex items-center bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 shadow-sm">
+                    <label for="select-tecnico" class="text-xs font-semibold text-slate-500 mr-2 flex items-center">
+                        <i class="fa-solid fa-user-gear text-sky-600 mr-1"></i> Técnico:
+                    </label>
+                    <select id="select-tecnico" name="tecnico" onchange="this.form.submit()" class="text-xs font-medium text-slate-800 bg-transparent border-0 focus:ring-0 cursor-pointer pr-6 py-0">
+                        {% for tec in tecnicos %}
+                            <option value="{{ tec.id }}" {% if tecnico_actual and tec.id == tecnico_actual.id %}selected{% endif %}>
+                                {{ tec.get_full_name|default:tec.username }} ({{ tec.username }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </form>
+            {% endif %}
+
+            {% if puede_dotar %}
+                <button type="button" @click="showDotarModal = true" class="inline-flex items-center px-3.5 py-2 border border-transparent shadow-sm text-xs font-bold rounded-lg text-white bg-sky-600 hover:bg-sky-700 transition">
+                    <i class="fa-solid fa-plus-circle mr-1.5"></i> Dotar Insumo a Kit
+                </button>
+            {% endif %}
+
+            {% if asignaciones %}
+                <button type="button" @click="selectedInsumoId = '{{ asignaciones.0.insumo.id }}'; showConsumoModal = true" class="inline-flex items-center px-3.5 py-2 border border-slate-300 shadow-sm text-xs font-bold rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition">
+                    <i class="fa-solid fa-clipboard-check mr-1.5 text-emerald-600"></i> Registrar Consumo
+                </button>
+                <button type="button" @click="selectedInsumoId = '{{ asignaciones.0.insumo.id }}'; showDevolverModal = true" class="inline-flex items-center px-3.5 py-2 border border-slate-300 shadow-sm text-xs font-bold rounded-lg text-slate-700 bg-white hover:bg-slate-50 transition">
+                    <i class="fa-solid fa-rotate-left mr-1.5 text-purple-600"></i> Devolver a Almacén
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Alert / Messages Container -->
+    {% if messages %}
+        <div class="space-y-2">
+            {% for message in messages %}
+                <div class="p-3.5 rounded-lg text-xs font-medium border flex items-center justify-between {% if message.tags == 'error' %}bg-rose-50 border-rose-200 text-rose-800{% else %}bg-emerald-50 border-emerald-200 text-emerald-800{% endif %}">
+                    <div class="flex items-center">
+                        <i class="{% if message.tags == 'error' %}fa-solid fa-circle-exclamation text-rose-500{% else %}fa-solid fa-circle-check text-emerald-500{% endif %} mr-2 text-sm"></i>
+                        <span>{{ message }}</span>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- KPI Metric Cards Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <!-- Card 1: Técnico Responsable -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Técnico Titular</p>
+                <h3 class="text-lg font-bold text-slate-900 mt-1 truncate max-w-[160px]" title="{{ tecnico_actual.get_full_name|default:tecnico_actual.username }}">
+                    {{ tecnico_actual.get_full_name|default:tecnico_actual.username }}
+                </h3>
+                <span class="text-xs text-slate-500 flex items-center mt-1">
+                    <i class="fa-solid fa-phone mr-1 text-[10px]"></i> {{ tecnico_actual.phone|default:"Sin teléfono" }}
+                </span>
+            </div>
+            <div class="p-3.5 bg-sky-50 text-sky-600 rounded-xl">
+                <i class="fa-solid fa-id-badge text-xl"></i>
+            </div>
+        </div>
+
+        <!-- Card 2: Total de Piezas en Posesión -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Piezas en Maletín</p>
+                <h3 class="text-2xl font-extrabold text-slate-900 mt-1">{{ total_piezas_kit }}</h3>
+                <span class="text-xs text-sky-600 font-medium flex items-center mt-1">
+                    <i class="fa-solid fa-box mr-1"></i> {{ asignaciones.count }} insumos distintos
+                </span>
+            </div>
+            <div class="p-3.5 bg-blue-50 text-blue-600 rounded-xl">
+                <i class="fa-solid fa-toolbox text-xl"></i>
+            </div>
+        </div>
+
+        <!-- Card 3: Insumos Bajos / Punto Crítico -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Nivel de Kit</p>
+                <h3 class="text-2xl font-extrabold {% if insumos_bajos > 0 %}text-amber-600{% else %}text-emerald-600{% endif %} mt-1">
+                    {{ insumos_bajos }}
+                </h3>
+                <span class="text-xs {% if insumos_bajos > 0 %}text-amber-600 font-semibold{% else %}text-emerald-600 font-medium{% endif %} flex items-center mt-1">
+                    {% if insumos_bajos > 0 %}
+                        <i class="fa-solid fa-triangle-exclamation mr-1"></i> Requiere reabastecimiento
+                    {% else %}
+                        <i class="fa-solid fa-circle-check mr-1"></i> Kit con stock suficiente
+                    {% endif %}
+                </span>
+            </div>
+            <div class="p-3.5 {% if insumos_bajos > 0 %}bg-amber-50 text-amber-600{% else %}bg-emerald-50 text-emerald-600{% endif %} rounded-xl">
+                <i class="fa-solid fa-battery-half text-xl"></i>
+            </div>
+        </div>
+
+        <!-- Card 4: Almacén Central -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Almacén Central</p>
+                <h3 class="text-2xl font-extrabold text-slate-900 mt-1">{{ insumos_almacen.count }}</h3>
+                <span class="text-xs text-slate-500 font-medium flex items-center mt-1">
+                    Refacciones con disponibilidad
+                </span>
+            </div>
+            <div class="p-3.5 bg-slate-50 text-slate-600 rounded-xl">
+                <a href="{% url 'almacen_lista' %}" title="Ir a catálogo general de almacén">
+                    <i class="fa-solid fa-warehouse text-xl text-slate-500 hover:text-sky-600"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Table: Insumos Asignados al Maletín del Técnico -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+                <h2 class="text-base font-bold text-slate-900 flex items-center">
+                    <i class="fa-solid fa-briefcase mr-2 text-sky-600"></i> Insumos y Materiales en Posesión de {{ tecnico_actual.get_full_name|default:tecnico_actual.username }}
+                </h2>
+                <p class="text-xs text-slate-500 mt-0.5">Control individual de existencias para intervenciones de mantenimiento preventivo.</p>
+            </div>
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                {{ asignaciones.count }} asignaciones activas
+            </span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+                <thead class="bg-slate-50 text-slate-600 font-semibold">
+                    <tr>
+                        <th class="px-6 py-3">Código Insumo</th>
+                        <th class="px-6 py-3">Descripción del Material</th>
+                        <th class="px-6 py-3">Categoría</th>
+                        <th class="px-6 py-3">Cantidad en Kit</th>
+                        <th class="px-6 py-3">Mínimo Sugerido</th>
+                        <th class="px-6 py-3">Estado de Kit</th>
+                        <th class="px-6 py-3">Última Dotación</th>
+                        <th class="px-6 py-3 text-right">Acciones Directas</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 bg-white">
+                    {% for asig in asignaciones %}
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="px-6 py-4 font-mono font-bold text-slate-800 text-xs">
+                            {{ asig.insumo.codigo_parte }}
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="font-semibold text-slate-900 block">{{ asig.insumo.nombre }}</span>
+                            <span class="text-xs text-slate-500">Unidad: {{ asig.insumo.unidad_medida }}</span>
+                        </td>
+                        <td class="px-6 py-4 text-xs text-slate-600">
+                            {{ asig.insumo.get_categoria_display }}
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="text-base font-extrabold text-slate-900">{{ asig.cantidad_disponible }}</span>
+                            <span class="text-xs text-slate-500 font-medium">{{ asig.insumo.unidad_medida }}(s)</span>
+                        </td>
+                        <td class="px-6 py-4 text-xs text-slate-500 font-medium">
+                            {{ asig.stock_minimo_kit }} {{ asig.insumo.unidad_medida }}(s)
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if asig.kit_bajo %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                    <i class="fa-solid fa-triangle-exclamation mr-1 text-[10px]"></i> Kit Bajo
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                    <i class="fa-solid fa-circle-check mr-1 text-[10px]"></i> Abastecido
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-xs text-slate-500">
+                            {{ asig.fecha_ultima_dotacion|date:"d/m/Y H:i" }}
+                        </td>
+                        <td class="px-6 py-4 text-right space-x-2">
+                            {% if asig.cantidad_disponible > 0 %}
+                                <button type="button"
+                                    @click="selectedInsumoId = '{{ asig.insumo.id }}'; selectedInsumoNombre = '{{ asig.insumo.nombre|escapejs }}'; selectedMaxDisp = {{ asig.cantidad_disponible }}; showConsumoModal = true"
+                                    class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition"
+                                    title="Registrar consumo de este insumo">
+                                    <i class="fa-solid fa-minus mr-1"></i> Consumir
+                                </button>
+                                <button type="button"
+                                    @click="selectedInsumoId = '{{ asig.insumo.id }}'; selectedInsumoNombre = '{{ asig.insumo.nombre|escapejs }}'; selectedMaxDisp = {{ asig.cantidad_disponible }}; showDevolverModal = true"
+                                    class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 transition"
+                                    title="Devolver piezas al almacén central">
+                                    <i class="fa-solid fa-arrow-rotate-left mr-1"></i> Devolver
+                                </button>
+                            {% else %}
+                                <span class="text-xs text-slate-400 italic">Sin existencias</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="px-6 py-10 text-center text-slate-500">
+                            <div class="max-w-sm mx-auto">
+                                <i class="fa-solid fa-box-open text-3xl text-slate-300 mb-2"></i>
+                                <p class="text-sm font-semibold text-slate-700">No hay insumos asignados a este técnico</p>
+                                <p class="text-xs text-slate-500 mt-1">Utiliza el botón de "Dotar Insumo a Kit" para entregar materiales desde el almacén central.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Secondary Table: Bitácora de Trazabilidad y Auditoría -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+                <h2 class="text-base font-bold text-slate-900 flex items-center">
+                    <i class="fa-solid fa-clock-rotate-left mr-2 text-sky-600"></i> Bitácora de Movimientos y Auditoría del Técnico
+                </h2>
+                <p class="text-xs text-slate-500 mt-0.5">Historial cronológico de dotaciones, consumos preventivos y devoluciones.</p>
+            </div>
+            <span class="text-xs text-slate-500">Últimos {{ movimientos.count }} movimientos</span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+                <thead class="bg-slate-50 text-slate-600 font-semibold">
+                    <tr>
+                        <th class="px-6 py-3">Fecha y Hora</th>
+                        <th class="px-6 py-3">Operación</th>
+                        <th class="px-6 py-3">Insumo</th>
+                        <th class="px-6 py-3">Cantidad</th>
+                        <th class="px-6 py-3">Registrado / Autorizado Por</th>
+                        <th class="px-6 py-3">Observaciones / Motivo</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 bg-white">
+                    {% for mov in movimientos %}
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="px-6 py-3.5 text-xs text-slate-600 font-mono whitespace-nowrap">
+                            {{ mov.fecha|date:"d/m/Y H:i:s" }}
+                        </td>
+                        <td class="px-6 py-3.5">
+                            {% if mov.tipo_operacion == 'DOTACION' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-sky-100 text-sky-800">
+                                    <i class="fa-solid fa-arrow-down mr-1 text-[10px]"></i> Dotación Almacén
+                                </span>
+                            {% elif mov.tipo_operacion == 'CONSUMO' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">
+                                    <i class="fa-solid fa-wrench mr-1 text-[10px]"></i> Consumo Mantenimiento
+                                </span>
+                            {% elif mov.tipo_operacion == 'DEVOLUCION' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-800">
+                                    <i class="fa-solid fa-rotate-left mr-1 text-[10px]"></i> Devolución Almacén
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-800">
+                                    {{ mov.get_tipo_operacion_display }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-3.5 text-xs font-semibold text-slate-900">
+                            {{ mov.insumo.nombre }}
+                        </td>
+                        <td class="px-6 py-3.5 text-xs font-bold text-slate-800">
+                            {{ mov.cantidad }} {{ mov.insumo.unidad_medida }}(s)
+                        </td>
+                        <td class="px-6 py-3.5 text-xs text-slate-600">
+                            {{ mov.autorizado_por.get_full_name|default:mov.autorizado_por.username|default:"Sistema" }}
+                        </td>
+                        <td class="px-6 py-3.5 text-xs text-slate-500">
+                            {{ mov.observaciones|default:"Sin observaciones registradas." }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-8 text-center text-slate-500 text-xs">
+                            No hay movimientos registrados para este técnico.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- MODAL 1: Dotar Insumo a Kit (Solo Supervisor / Almacén / Admin) -->
+    {% if puede_dotar %}
+    <div x-show="showDotarModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div x-show="showDotarModal" @click="showDotarModal = false" class="fixed inset-0 bg-slate-900/60 transition-opacity"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+
+            <div class="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-slate-200">
+                <form method="post" action="{% url 'dotar_insumo_tecnico' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="tecnico_id" value="{{ tecnico_actual.id }}">
+
+                    <div class="bg-brand-900 px-6 py-4 flex items-center justify-between text-white">
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid fa-box-open text-sky-400"></i>
+                            <h3 class="text-base font-bold">Dotar Insumo desde Almacén Central</h3>
+                        </div>
+                        <button type="button" @click="showDotarModal = false" class="text-slate-300 hover:text-white">
+                            <i class="fa-solid fa-xmark text-lg"></i>
+                        </button>
+                    </div>
+
+                    <div class="px-6 py-5 space-y-4">
+                        <div class="bg-sky-50 border border-sky-200 rounded-lg p-3 text-xs text-sky-900">
+                            <strong>Destinatario:</strong> {{ tecnico_actual.get_full_name|default:tecnico_actual.username }} ({{ tecnico_actual.username }})
+                            <div class="text-[11px] text-sky-700 mt-0.5">El inventario se descontará del almacén general y se sumará al kit del técnico.</div>
+                        </div>
+
+                        <div>
+                            <label for="dotar-insumo" class="block text-xs font-semibold text-slate-700 mb-1">
+                                Seleccionar Insumo del Almacén Central: <span class="text-rose-500">*</span>
+                            </label>
+                            <select id="dotar-insumo" name="insumo_id" required class="w-full text-xs border border-slate-300 rounded-lg p-2.5 focus:ring-sky-500 focus:border-sky-500">
+                                <option value="">-- Seleccione un insumo disponible --</option>
+                                {% for ins in insumos_almacen %}
+                                    <option value="{{ ins.id }}">
+                                        {{ ins.nombre }} ({{ ins.codigo_parte }}) &mdash; Disponible en almacén: {{ ins.stock_actual }} {{ ins.unidad_medida }}(s)
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="dotar-cantidad" class="block text-xs font-semibold text-slate-700 mb-1">
+                                Cantidad a Entregar: <span class="text-rose-500">*</span>
+                            </label>
+                            <input type="number" id="dotar-cantidad" name="cantidad" min="1" value="1" required class="w-full text-xs border border-slate-300 rounded-lg p-2.5 focus:ring-sky-500 focus:border-sky-500">
+                        </div>
+
+                        <div>
+                            <label for="dotar-obs" class="block text-xs font-semibold text-slate-700 mb-1">
+                                Observaciones o Justificación de Entrega:
+                            </label>
+                            <textarea id="dotar-obs" name="observaciones" rows="2" placeholder="Ej. Dotación quincenal para mantenimiento de computadoras en laboratorios..." class="w-full text-xs border border-slate-300 rounded-lg p-2.5 focus:ring-sky-500 focus:border-sky-500"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 px-6 py-3 border-t border-slate-200 flex justify-end space-x-2">
+                        <button type="button" @click="showDotarModal = false" class="px-4 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100 transition">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow-sm transition">
+                            <i class="fa-solid fa-check mr-1.5"></i> Confirmar Entrega
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- MODAL 2: Registrar Devolución al Almacén Central -->
+    <div x-show="showDevolverModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div x-show="showDevolverModal" @click="showDevolverModal = false" class="fixed inset-0 bg-slate-900/60 transition-opacity"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+
+            <div class="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-slate-200">
+                <form method="post" action="{% url 'devolver_insumo_tecnico' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="tecnico_id" value="{{ tecnico_actual.id }}">
+
+                    <div class="bg-purple-900 px-6 py-4 flex items-center justify-between text-white">
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid fa-arrow-rotate-left text-purple-300"></i>
+                            <h3 class="text-base font-bold">Reintegrar Insumo al Almacén Central</h3>
+                        </div>
+                        <button type="button" @click="showDevolverModal = false" class="text-slate-300 hover:text-white">
+                            <i class="fa-solid fa-xmark text-lg"></i>
+                        </button>
+                    </div>
+
+                    <div class="px-6 py-5 space-y-4">
+                        <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 text-xs text-purple-900">
+                            <strong>Origen:</strong> Kit de {{ tecnico_actual.get_full_name|default:tecnico_actual.username }}
+                            <div class="text-[11px] text-purple-700 mt-0.5">El material devuelto se reintegrará al stock disponible del almacén central.</div>
+                        </div>
+
+                        <div>
+                            <label for="dev-insumo" class="block text-xs font-semibold text-slate-700 mb-1">
+                                Insumo a Devolver: <span class="text-rose-500">*</span>
+                            </label>
+                            <select id="dev-insumo" name="insumo_id" x-model="selectedInsumoId" required class="w-full text-xs border border-slate-300 rounded-lg p-2.5 focus:ring-purple-500 focus:border-purple-500">
+                                {% for asig in asignaciones %}
+                                    <option value="{{ asig.insumo.id }}">
+                                        {{ asig.insumo.nombre }} (En posesión: {{ asig.cantidad_disponible }} {{ asig.insumo.unidad_medida }}s)
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="dev-cantidad" class="block text-xs font-semibold text-slate-700 mb-1">
+                                Cantidad a Devolver: <span class="text-rose-500">*</span>
+                            </label>
+                            <input type="number" id="dev-cantidad" name="cantidad" min="1" value="1" required class="w-full text-xs border border-slate-300 rounded-lg p-2.5 focus:ring-purple-500 focus:border-purple-500">
+                        </div>
+
+                        <div>
+                            <label for="dev-obs" class="block text-xs font-semibold text-slate-700 mb-1">
+                                Motivo de la Devolución:
+                            </label>
+                            <textarea id="dev-obs" name="observaciones" rows="2" placeholder="Ej. Material no utilizado tras concluir jornada de mantenimiento preventivo..." class="w-full text-xs border border-slate-300 rounded-lg p-2.5 focus:ring-purple-500 focus:border-purple-500"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 px-6 py-3 border-t border-slate-200 flex justify-end space-x-2">
+                        <button type="button" @click="showDevolverModal = false" class="px-4 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100 transition">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-purple-700 hover:bg-purple-800 text-white rounded-lg text-xs font-bold shadow-sm transition">
+                            <i class="fa-solid fa-arrow-rotate-left mr-1.5"></i> Reintegrar al Almacén
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: Registrar Consumo en Mantenimiento Preventivo -->
+    <div x-show="showConsumoModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div x-show="showConsumoModal" @click="showConsumoModal = false" class="fixed inset-0 bg-slate-900/60 transition-opacity"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+
+            <div class="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-slate-200">
+                <form method="post" action="{% url 'registrar_consumo_insumo' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="tecnico_id" value="{{ tecnico_actual.id }}">
+
+                    <div class="bg-emerald-800 px-6 py-4 flex items-center justify-between text-white">
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid fa-wrench text-emerald-300"></i>
+                            <h3 class="text-base font-bold">Registrar Consumo en Servicio Preventivo</h3>
+                        </div>
+                        <button type="button" @click="showConsumoModal = false" class="text-slate-300 hover:text-white">
+                            <i class="fa-solid fa-xmark text-lg"></i>
+                        </button>
+                    </div>
+
+                    <div class="px-6 py-5 space-y-4">
+                        <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-xs text-emerald-900">
+                            <strong>Kit Responsable:</strong> {{ tecnico_actual.get_full_name|default:tecnico_actual.username }}
+                            <div class="text-[11px] text-emerald-700 mt-0.5">Se descontará la cantidad del maletín del técnico y quedará asentado en el historial de trazabilidad.</div>
+                        </div>
+
+                        <div>
+                            <label for="cons-insumo" class="block text-xs font-semibold text-slate-700 mb-1">
+                                Insumo Consumido: <span class="text-rose-500">*</span>
+                            </label>
+                            <select id="cons-insumo" name="insumo_id" x-model="selectedInsumoId" required class="w-full text-xs border border-slate-300 rounded-lg p-2.5 focus:ring-emerald-500 focus:border-emerald-500">
+                                {% for asig in asignaciones %}
+                                    <option value="{{ asig.insumo.id }}">
+                                        {{ asig.insumo.nombre }} (Disponibles: {{ asig.cantidad_disponible }} {{ asig.insumo.unidad_medida }}s)
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="cons-cantidad" class="block text-xs font-semibold text-slate-700 mb-1">
+                                Cantidad Consumida: <span class="text-rose-500">*</span>
+                            </label>
+                            <input type="number" id="cons-cantidad" name="cantidad" min="1" value="1" required class="w-full text-xs border border-slate-300 rounded-lg p-2.5 focus:ring-emerald-500 focus:border-emerald-500">
+                        </div>
+
+                        <div>
+                            <label for="cons-motivo" class="block text-xs font-semibold text-slate-700 mb-1">
+                                Detalle de Aplicación / Folio de OT:
+                            </label>
+                            <textarea id="cons-motivo" name="motivo" rows="2" placeholder="Ej. Aplicado en servicio preventivo de OTP-202611-0001 (Laboratorio Cómputo B)..." class="w-full text-xs border border-slate-300 rounded-lg p-2.5 focus:ring-emerald-500 focus:border-emerald-500"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 px-6 py-3 border-t border-slate-200 flex justify-end space-x-2">
+                        <button type="button" @click="showConsumoModal = false" class="px-4 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100 transition">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition">
+                            <i class="fa-solid fa-check mr-1.5"></i> Registrar Consumo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

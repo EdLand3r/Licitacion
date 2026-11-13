@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block title %}Contratos y Licitaciones | Spartan PC{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Licitaciones y Contratos de Servicios de TI</h1>
+            <p class="text-sm text-slate-500">Parámetros contractuales, cláusulas de SLA y sedes amparadas.</p>
+        </div>
+    </div>
+
+    <div class="space-y-4">
+        {% for c in contratos %}
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-4">
+                <div>
+                    <span class="text-xs font-mono font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
+                        {{ c.numero_contrato }}
+                    </span>
+                    <h3 class="text-lg font-bold text-slate-900 mt-1">{{ c.dependencia_cliente }}</h3>
+                    <p class="text-xs text-slate-500">Licitación: <strong>{{ c.numero_licitacion }}</strong></p>
+                </div>
+                <div class="text-right">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold {% if c.esta_vigente %}bg-emerald-100 text-emerald-800{% else %}bg-slate-100 text-slate-800{% endif %}">
+                        {% if c.esta_vigente %}✓ Contrato Vigente{% else %}Inactivo / Vencido{% endif %}
+                    </span>
+                    <div class="text-xs text-slate-500 mt-1">
+                        {{ c.fecha_inicio|date:"d/m/Y" }} al {{ c.fecha_fin|date:"d/m/Y" }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                <div class="bg-slate-50 p-3 rounded-lg">
+                    <span class="text-slate-500 block">SLA Tiempo de Respuesta:</span>
+                    <strong class="text-slate-900 text-sm font-mono">{{ c.sla_horas_respuesta }} horas</strong>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-lg">
+                    <span class="text-slate-500 block">SLA Tiempo de Solución:</span>
+                    <strong class="text-slate-900 text-sm font-mono">{{ c.sla_horas_solucion }} horas</strong>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-lg">
+                    <span class="text-slate-500 block">Penalización por Retraso:</span>
+                    <strong class="text-red-700 text-sm font-mono">${{ c.penalizacion_por_retraso }} MXN / hora</strong>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-100 pt-3">
+                <h4 class="text-xs font-bold text-slate-700 uppercase mb-2">Sedes Vinculadas ({{ c.sedes.count }}):</h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {% for sede in c.sedes.all %}
+                    <div class="border border-slate-200 rounded-lg p-2.5 text-xs">
+                        <div class="font-bold text-slate-900">{{ sede.nombre }}</div>
+                        <div class="text-slate-500 text-[11px]">{{ sede.direccion }}</div>
+                        <div class="text-slate-600 mt-1">
+                            <i class="fa-solid fa-user-tie mr-1 text-slate-400"></i> Enlace: {{ sede.enlace_responsable.get_full_name|default:sede.enlace_responsable.username|default:"No asignado" }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}

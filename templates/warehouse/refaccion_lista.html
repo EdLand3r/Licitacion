@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}Almacén de Refacciones | Spartan PC{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Almacén y Refacciones de Cómputo</h1>
+            <p class="text-sm text-slate-500">Control de existencias, consumibles de mantenimiento y repuestos críticos.</p>
+        </div>
+        <div class="text-xs text-slate-500 bg-white border border-slate-200 px-3 py-2 rounded-lg shadow-sm">
+            Total ítems en almacén: <strong class="text-slate-900">{{ refacciones.count }}</strong>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+                <thead class="bg-slate-50 text-slate-600 font-semibold">
+                    <tr>
+                        <th class="px-6 py-3">Código / Parte</th>
+                        <th class="px-6 py-3">Descripción de la Refacción</th>
+                        <th class="px-6 py-3">Categoría</th>
+                        <th class="px-6 py-3">Stock Actual</th>
+                        <th class="px-6 py-3">Mínimo</th>
+                        <th class="px-6 py-3">Costo Ref.</th>
+                        <th class="px-6 py-3">Estatus Stock</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 bg-white">
+                    {% for ref in refacciones %}
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="px-6 py-4 font-mono font-bold text-slate-800">{{ ref.codigo_parte }}</td>
+                        <td class="px-6 py-4 font-medium text-slate-900">{{ ref.nombre }}</td>
+                        <td class="px-6 py-4 text-xs text-slate-600">{{ ref.get_categoria_display }}</td>
+                        <td class="px-6 py-4 font-bold text-slate-900 text-base">{{ ref.stock_actual }} {{ ref.unidad_medida }}s</td>
+                        <td class="px-6 py-4 text-xs text-slate-500">{{ ref.stock_minimo_alerta }}</td>
+                        <td class="px-6 py-4 text-xs font-mono text-slate-700">${{ ref.costo_unitario }} MXN</td>
+                        <td class="px-6 py-4">
+                            {% if ref.stock_bajo %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800">
+                                    <i class="fa-solid fa-triangle-exclamation mr-1 text-[10px]"></i> Bajo Mínimo
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">
+                                    <i class="fa-solid fa-circle-check mr-1 text-[10px]"></i> Abastecido
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-8 text-center text-slate-500">No hay refacciones en almacén.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,48 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: spartan_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: spartan_pc_db
+      MYSQL_USER: spartan_user
+      MYSQL_PASSWORD: spartan_pass
+      MYSQL_ROOT_PASSWORD: spartan_root_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pspartan_root_pass"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spartan_web
+    restart: unless-stopped
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=True
+      - SECRET_KEY=spartan-pc-dev-secret-key-change-in-production-2026
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+      - DB_ENGINE=mysql
+      - DB_NAME=spartan_pc_db
+      - DB_USER=spartan_user
+      - DB_PASSWORD=spartan_pass
+      - DB_HOST=db
+      - DB_PORT=3306
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  mysql_data:

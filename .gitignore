@@ -1,0 +1,33 @@
+# Python / Django
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Entorno Virtual
+.venv/
+venv/
+ENV/
+env/
+
+# Variables de entorno y secretos
+.env
+
+# Base de datos local
+*.sqlite3
+db.sqlite3
+
+# Archivos multimedia de desarrollo
+media/
+
+# Logs y temporales
+*.log
+.cache/
+.pytest_cache/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo

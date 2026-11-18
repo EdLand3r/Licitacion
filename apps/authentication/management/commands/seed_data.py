@@ -106,12 +106,30 @@ class Command(BaseCommand):
                 'email': 'enlace.itse@itse.edu.mx',
                 'role': User.Role.ENLACE,
                 'phone': '982-123-4567',
-                'dependencia_o_empresa': 'Instituto Tecnológico Superior de Escárcega',
+                'dependencia_o_empresa': 'Instituto Tecnológico Superior de Escárcega (ITSE)',
                 'cargo': 'Enlace de Recursos Materiales y TI'
             }
         )
+        enlace_user.dependencia_o_empresa = 'Instituto Tecnológico Superior de Escárcega (ITSE)'
         enlace_user.set_password('enlace123')
         enlace_user.save()
+
+        # 5b. Enlace de la dependencia (Cliente SEDUC Campeche para pruebas de aislamiento)
+        enlace_seduc_user, _ = User.objects.get_or_create(
+            username='enlace_seduc',
+            defaults={
+                'first_name': 'Patricia',
+                'last_name': 'Canto Pech',
+                'email': 'patricia.canto@seduc.campeche.gob.mx',
+                'role': User.Role.ENLACE,
+                'phone': '981-811-2233 Ext. 102',
+                'dependencia_o_empresa': 'Secretaría de Educación del Estado de Campeche (SEDUC)',
+                'cargo': 'Jefa de Departamento de Informática y Cómputo'
+            }
+        )
+        enlace_seduc_user.dependencia_o_empresa = 'Secretaría de Educación del Estado de Campeche (SEDUC)'
+        enlace_seduc_user.set_password('enlace123')
+        enlace_seduc_user.save()
 
         # 6. Encargado de almacén
         alm_user, _ = User.objects.get_or_create(
@@ -188,10 +206,13 @@ class Command(BaseCommand):
             nombre='Complejo Administrativo SEDUC Campeche',
             defaults={
                 'direccion': 'Av. Maestros Campechanos S/N, San Francisco de Campeche',
-                'enlace_responsable': enlace_user,
+                'enlace_responsable': enlace_seduc_user,
                 'telefono_contacto': '981-811-2233'
             }
         )
+        if sede_seduc.enlace_responsable != enlace_seduc_user:
+            sede_seduc.enlace_responsable = enlace_seduc_user
+            sede_seduc.save(update_fields=['enlace_responsable'])
 
         # 3. Refacciones en Almacén
         ref_pasta, _ = Refaccion.objects.get_or_create(
@@ -528,47 +549,43 @@ class Command(BaseCommand):
             }
         )
 
-        # Movimientos históricos para Técnico 1
-        MovimientoInsumoTecnico.objects.get_or_create(
-            tecnico=tec_user,
-            insumo=ref_pasta,
-            tipo_operacion=MovimientoInsumoTecnico.TipoOperacion.DOTACION,
-            cantidad=5,
-            defaults={
-                'autorizado_por': alm_user,
-                'observaciones': 'Dotación quincenal inicial para mantenimiento preventivo ITSE.',
-            }
-        )
-        MovimientoInsumoTecnico.objects.get_or_create(
-            tecnico=tec_user,
-            insumo=ref_pasta,
-            tipo_operacion=MovimientoInsumoTecnico.TipoOperacion.CONSUMO_MANTENIMIENTO,
-            cantidad=1,
-            defaults={
-                'autorizado_por': tec_user,
-                'observaciones': 'Consumo en servicio preventivo OTP-202611-0001 (MicroTower AOC).',
-            }
-        )
-        MovimientoInsumoTecnico.objects.get_or_create(
-            tecnico=tec_user,
-            insumo=ref_aire,
-            tipo_operacion=MovimientoInsumoTecnico.TipoOperacion.DOTACION,
-            cantidad=2,
-            defaults={
-                'autorizado_por': alm_user,
-                'observaciones': 'Entrega de latas de aire comprimido para limpieza de turbinas.',
-            }
-        )
-        MovimientoInsumoTecnico.objects.get_or_create(
-            tecnico=tec_user,
-            insumo=ref_aire,
-            tipo_operacion=MovimientoInsumoTecnico.TipoOperacion.CONSUMO_MANTENIMIENTO,
-            cantidad=1,
-            defaults={
-                'autorizado_por': tec_user,
-                'observaciones': 'Consumo en mantenimiento preventivo OTP-202611-0002 (Laptop HP).',
-            }
-        )
+        # Movimientos históricos para Técnico 1 (idempotente)
+        if not MovimientoInsumoTecnico.objects.filter(tecnico=tec_user, insumo=ref_pasta, tipo_operacion=MovimientoInsumoTecnico.TipoOperacion.DOTACION).exists():
+            MovimientoInsumoTecnico.objects.create(
+                tecnico=tec_user,
+                insumo=ref_pasta,
+                tipo_operacion=MovimientoInsumoTecnico.TipoOperacion.DOTACION,
+                cantidad=5,
+                autorizado_por=alm_user,
+                observaciones='Dotación quincenal inicial para mantenimiento preventivo ITSE.'
+            )
+        if not MovimientoInsumoTecnico.objects.filter(tecnico=tec_user, insumo=ref_pasta, tipo_operacion=MovimientoInsumoTecnico.TipoOperacion.CONSUMO_MANTENIMIENTO).exists():
+            MovimientoInsumoTecnico.objects.create(
+                tecnico=tec_user,
+                insumo=ref_pasta,
+                tipo_operacion=MovimientoInsumoTecnico.TipoOperacion.CONSUMO_MANTENIMIENTO,
+                cantidad=1,
+                autorizado_por=tec_user,
+                observaciones='Consumo en servicio preventivo OTP-202611-0001 (MicroTower AOC).'
+            )
+        if not MovimientoInsumoTecnico.objects.filter(tecnico=tec_user, insumo=ref_aire, tipo_operacion=MovimientoInsumoTecnico.TipoOperacion.DOTACION).exists():
+            MovimientoInsumoTecnico.objects.create(
+                tecnico=tec_user,
+                insumo=ref_aire,
+                tipo_operacion=MovimientoInsumoTecnico.TipoOperacion.DOTACION,
+                cantidad=2,
+                autorizado_por=alm_user,
+                observaciones='Entrega de latas de aire comprimido para limpieza de turbinas.'
+            )
+        if not MovimientoInsumoTecnico.objects.filter(tecnico=tec_user, insumo=ref_aire, tipo_operacion=MovimientoInsumoTecnico.TipoOperacion.CONSUMO_MANTENIMIENTO).exists():
+            MovimientoInsumoTecnico.objects.create(
+                tecnico=tec_user,
+                insumo=ref_aire,
+                tipo_operacion=MovimientoInsumoTecnico.TipoOperacion.CONSUMO_MANTENIMIENTO,
+                cantidad=1,
+                autorizado_por=tec_user,
+                observaciones='Consumo en mantenimiento preventivo OTP-202611-0002 (Laptop HP).'
+            )
 
         # Asignaciones para Técnico 2 (César Alejandro)
         AsignacionInsumoTecnico.objects.get_or_create(
@@ -595,25 +612,23 @@ class Command(BaseCommand):
                 'stock_minimo_kit': 2,
             }
         )
-        MovimientoInsumoTecnico.objects.get_or_create(
-            tecnico=tec2_user,
-            insumo=ref_alcohol,
-            tipo_operacion=MovimientoInsumoTecnico.TipoOperacion.DOTACION,
-            cantidad=3,
-            defaults={
-                'autorizado_por': coord_user,
-                'observaciones': 'Dotación para inspección de servidores SEDUC Campeche.',
-            }
-        )
-        MovimientoInsumoTecnico.objects.get_or_create(
-            tecnico=tec2_user,
-            insumo=ref_alcohol,
-            tipo_operacion=MovimientoInsumoTecnico.TipoOperacion.DEVOLUCION,
-            cantidad=1,
-            defaults={
-                'autorizado_por': alm_user,
-                'observaciones': 'Devolución de botella sobrante por reajuste de cuadrilla.',
-            }
-        )
+        if not MovimientoInsumoTecnico.objects.filter(tecnico=tec2_user, insumo=ref_alcohol, tipo_operacion=MovimientoInsumoTecnico.TipoOperacion.DOTACION).exists():
+            MovimientoInsumoTecnico.objects.create(
+                tecnico=tec2_user,
+                insumo=ref_alcohol,
+                tipo_operacion=MovimientoInsumoTecnico.TipoOperacion.DOTACION,
+                cantidad=3,
+                autorizado_por=coord_user,
+                observaciones='Dotación para inspección de servidores SEDUC Campeche.'
+            )
+        if not MovimientoInsumoTecnico.objects.filter(tecnico=tec2_user, insumo=ref_alcohol, tipo_operacion=MovimientoInsumoTecnico.TipoOperacion.DEVOLUCION).exists():
+            MovimientoInsumoTecnico.objects.create(
+                tecnico=tec2_user,
+                insumo=ref_alcohol,
+                tipo_operacion=MovimientoInsumoTecnico.TipoOperacion.DEVOLUCION,
+                cantidad=1,
+                autorizado_por=alm_user,
+                observaciones='Devolución de botella sobrante por reajuste de cuadrilla.'
+            )
 
         self.stdout.write(self.style.SUCCESS("✓ Base de datos poblada exitosamente con órdenes preventivas exclusivas, técnicos, insumos y avance!"))

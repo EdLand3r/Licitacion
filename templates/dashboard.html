@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Dashboard General | Spartan PC GMAO{% endblock %}
+{% block title %}Dashboard General | Gestion de Licitaciones{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
@@ -8,31 +8,61 @@
     <!-- Header Section -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
         <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Panel de Control de Mantenimiento Preventivo</h1>
-            <p class="text-sm text-slate-500">Supervisión operativa, monitoreo de % de avance y cumplimiento contractual SLA.</p>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">
+                {% if es_cliente %}Panel de Mantenimiento &bull; {{ request.user.dependencia_o_empresa|default:"Cliente" }}{% elif es_tecnico %}Panel Operativo del Técnico{% else %}Panel de Control de Mantenimiento Preventivo{% endif %}
+            </h1>
+            <p class="text-sm text-slate-500">
+                {% if es_cliente %}Monitoreo de equipos amparados, seguimiento de tickets SLA y validación de reportes de servicio.{% elif es_tecnico %}Órdenes asignadas a su usuario, captura de actividades y registro de avance.{% else %}Supervisión operativa, monitoreo de % de avance y cumplimiento contractual SLA.{% endif %}
+            </p>
         </div>
         <div class="flex items-center space-x-2">
+            {% if not es_cliente or not es_unica_licitacion %}
             <a href="{% url 'ordenes_lista' %}?agrupar=licitacion" class="inline-flex items-center px-3.5 py-2 border border-slate-300 shadow-sm text-xs font-bold rounded-lg text-slate-700 bg-white hover:bg-slate-50">
                 <i class="fa-solid fa-layer-group mr-1.5 text-sky-600"></i> Agrupar por Licitación
             </a>
+            {% endif %}
             <a href="{% url 'ordenes_lista' %}" class="inline-flex items-center px-3.5 py-2 border border-slate-300 shadow-sm text-xs font-bold rounded-lg text-slate-700 bg-white hover:bg-slate-50">
-                <i class="fa-solid fa-list-check mr-1.5 text-slate-500"></i> Ver Órdenes
+                <i class="fa-solid fa-list-check mr-1.5 text-slate-500"></i> {% if es_tecnico %}Mis Órdenes{% elif es_cliente %}Ver Órdenes / Tickets{% else %}Ver Órdenes{% endif %}
             </a>
             {% if user.role == 'ADMIN' or user.role == 'COORDINADOR' or user.role == 'ALMACEN' or user.role == 'TECNICO' or user.is_superuser %}
             <a href="{% url 'insumos_tecnicos' %}" class="inline-flex items-center px-3.5 py-2 border border-slate-300 shadow-sm text-xs font-bold rounded-lg text-slate-700 bg-white hover:bg-slate-50">
                 <i class="fa-solid fa-toolbox mr-1.5 text-sky-600"></i> {% if user.role == 'TECNICO' %}Mi Kit Insumos{% else %}Insumos Técnicos{% endif %}
             </a>
             {% endif %}
-            {% if user.role == 'ADMIN' or user.role == 'COORDINADOR' or user.role == 'RESPONSABLE_LICITACIONES' or user.is_superuser %}
-            <a href="{% url 'ordenes_crear' %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-xs font-bold rounded-lg text-white bg-sky-600 hover:bg-sky-700">
+            {# Botón de Nueva Orden: Exclusivo para el rol COORDINADOR #}
+            {% if user.role == 'COORDINADOR' or user.is_superuser %}
+            <a href="{% url 'ordenes_crear' %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-xs font-bold rounded-lg text-white bg-sky-600 hover:bg-sky-700 transition">
                 <i class="fa-solid fa-plus mr-1.5"></i> Nueva Orden Preventiva
             </a>
             {% endif %}
         </div>
     </div>
 
-    <!-- KPI Metric Cards Grid -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+    <!-- Barra de Búsqueda y Filtro Rápido por Folio de Licitación -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+        <form method="get" class="flex flex-col sm:flex-row items-center gap-3">
+            <div class="relative flex-1 w-full">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                    <i class="fa-solid fa-hashtag text-xs"></i>
+                </span>
+                <input type="text" name="licitacion_folio" value="{{ licitacion_folio }}" placeholder="Filtrar instantáneamente por Folio de Licitación (ej. LIC-2026-0001, CT-ITSE...)"
+                       class="w-full pl-9 pr-3 py-2 text-xs font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+            </div>
+            <div class="flex items-center space-x-2 w-full sm:w-auto">
+                <button type="submit" class="w-full sm:w-auto px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow transition flex items-center justify-center">
+                    <i class="fa-solid fa-magnifying-glass mr-1.5"></i> Filtrar Licitación
+                </button>
+                {% if licitacion_folio %}
+                <a href="{% url 'dashboard' %}" class="px-3 py-2 border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-lg text-xs font-semibold" title="Limpiar Filtro">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- KPI Metric Cards Grid (100% Operativo sin tarjeta de refacciones) -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <!-- Card 1: Total Activos -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center justify-between">
             <div>
@@ -65,27 +95,13 @@
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center justify-between">
             <div>
                 <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Cumplimiento SLA</p>
-                <h3 class="text-2xl font-extrabold text-emerald-600 mt-1">98.5%</h3>
+                <h3 class="text-2xl font-extrabold text-emerald-600 mt-1">{{ sla_porcentaje|default:"100%" }}</h3>
                 <span class="text-xs text-slate-500 font-medium flex items-center mt-1">
-                    Sin penalizaciones acumuladas
+                    Compromiso contractual vigente
                 </span>
             </div>
             <div class="p-3.5 bg-emerald-50 text-emerald-600 rounded-xl">
                 <i class="fa-solid fa-shield-halved text-xl"></i>
-            </div>
-        </div>
-
-        <!-- Card 4: Alertas de Stock -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center justify-between">
-            <div>
-                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Almacén Refacciones</p>
-                <h3 class="text-2xl font-extrabold text-slate-900 mt-1">{{ total_refacciones }} piezas</h3>
-                <span class="text-xs {% if stock_bajo > 0 %}text-amber-600 font-semibold{% else %}text-slate-500{% endif %} flex items-center mt-1">
-                    <i class="fa-solid fa-triangle-exclamation mr-1"></i> {{ stock_bajo }} bajo stock mínimo
-                </span>
-            </div>
-            <div class="p-3.5 bg-amber-50 text-amber-600 rounded-xl">
-                <i class="fa-solid fa-boxes-stacked text-xl"></i>
             </div>
         </div>
     </div>
@@ -204,15 +220,27 @@
                             {% endif %}
                         </td>
                         <!-- Acciones -->
-                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                        <td class="px-6 py-4 text-right whitespace-nowrap space-x-1">
                             <a href="{% url 'orden_detalle' ot.id %}" class="inline-flex items-center px-2.5 py-1.5 border border-sky-300 text-xs font-semibold rounded text-sky-700 bg-sky-50 hover:bg-sky-100 transition shadow-sm" title="Ver Detalle y Reporte Técnico Oficial">
                                 <i class="fa-solid fa-file-invoice mr-1"></i> Reporte
                             </a>
+                            {% if ot.estatus == 'CERRADA_CONFORME' %}
+                                <a href="{% url 'orden_detalle' ot.id %}#firma" class="inline-flex items-center px-2.5 py-1.5 border border-emerald-300 text-xs font-semibold rounded text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition shadow-sm" title="Descargar / Ver Conformidad Firmada">
+                                    <i class="fa-solid fa-signature mr-1 text-emerald-600"></i> Conformidad
+                                </a>
+                                <a href="{% url 'orden_detalle' ot.id %}?print=1" target="_blank" class="inline-flex items-center px-2 py-1.5 border border-slate-300 text-xs font-semibold rounded text-slate-700 bg-white hover:bg-slate-50 transition shadow-sm" title="Exportar PDF / Imprimir">
+                                    <i class="fa-solid fa-file-pdf text-rose-600"></i>
+                                </a>
+                            {% elif ot.estatus == 'PENDIENTE_VALIDACION' and es_cliente %}
+                                <a href="{% url 'orden_detalle' ot.id %}#firma" class="inline-flex items-center px-2.5 py-1.5 border border-amber-300 text-xs font-bold rounded text-amber-800 bg-amber-100 hover:bg-amber-200 transition shadow-sm animate-pulse" title="Firmar Conformidad de Servicio">
+                                    <i class="fa-solid fa-signature mr-1 text-amber-700"></i> Firmar Conformidad
+                                </a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="px-6 py-10 text-center text-slate-500">
+                        <td colspan="9" class="px-6 py-10 text-center text-slate-500">
                             <i class="fa-solid fa-clipboard-check text-3xl text-slate-300 mb-2 block"></i>
                             No hay órdenes de trabajo activas en este momento.
                         </td>

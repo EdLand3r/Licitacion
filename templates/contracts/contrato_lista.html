@@ -1,67 +1,157 @@
 {% extends 'base.html' %}
 
-{% block title %}Contratos y Licitaciones | Spartan PC{% endblock %}
+{% block title %}Licitaciones y Contratos SLA | Gestion de Licitaciones{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
 
+    <!-- Header Section -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
         <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Licitaciones y Contratos de Servicios de TI</h1>
-            <p class="text-sm text-slate-500">Parámetros contractuales, cláusulas de SLA y sedes amparadas.</p>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Licitaciones y Contratos SLA</h1>
+            <p class="text-sm text-slate-500">
+                Gestión operativa integral, asignación de técnicos de mantenimiento, reserva de insumos y equipos amparados.
+            </p>
         </div>
+        {% if puede_crear %}
+        <div class="flex items-center space-x-2">
+            <a href="{% url 'licitacion_crear' %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-xs font-bold rounded-lg text-white bg-sky-600 hover:bg-sky-700 transition">
+                <i class="fa-solid fa-plus mr-1.5"></i> + Nueva Licitación
+            </a>
+        </div>
+        {% endif %}
     </div>
 
+    <!-- Barra de Búsqueda Directa por Folio y Filtros Operativos -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+        <form method="get" class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+            <!-- Búsqueda Directa por Folio de Licitación -->
+            <div class="sm:col-span-4">
+                <label class="block text-xs font-bold text-slate-700 mb-1">
+                    <i class="fa-solid fa-hashtag text-sky-600 mr-1"></i> Buscar por Folio de Licitación:
+                </label>
+                <div class="relative">
+                    <input type="text" name="folio" value="{{ folio_query }}" placeholder="Ej. LIC-2026-0001 o CT-ITSE-..."
+                           class="w-full pl-3 pr-3 py-2 text-xs font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+            </div>
+
+            <!-- Búsqueda General -->
+            <div class="sm:col-span-4">
+                <label class="block text-xs font-bold text-slate-700 mb-1">
+                    <i class="fa-solid fa-magnifying-glass text-slate-400 mr-1"></i> Búsqueda por Dependencia o Título:
+                </label>
+                <input type="text" name="q" value="{{ q_query }}" placeholder="Ej. ITSE, SEDUC, Cómputo..."
+                       class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+            </div>
+
+            <!-- Filtro por Estatus -->
+            <div class="sm:col-span-2">
+                <label class="block text-xs font-bold text-slate-700 mb-1">Estatus:</label>
+                <select name="estatus" class="w-full py-2 px-3 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    <option value="">-- Todos --</option>
+                    <option value="ACTIVA" {% if estatus_filter == 'ACTIVA' %}selected{% endif %}>Activa</option>
+                    <option value="POR_VENCER" {% if estatus_filter == 'POR_VENCER' %}selected{% endif %}>Por vencer</option>
+                    <option value="CERRADA" {% if estatus_filter == 'CERRADA' %}selected{% endif %}>Cerrada</option>
+                </select>
+            </div>
+
+            <!-- Botones -->
+            <div class="sm:col-span-2 flex space-x-2">
+                <button type="submit" class="w-full py-2 px-3 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow">
+                    Filtrar
+                </button>
+                {% if folio_query or q_query or estatus_filter %}
+                <a href="{% url 'contratos_lista' %}" class="py-2 px-3 border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-lg text-xs font-semibold" title="Limpiar Filtros">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- Listado de Licitaciones -->
     <div class="space-y-4">
         {% for c in contratos %}
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-4">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4 hover:border-sky-300 transition">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 border-b border-slate-100 pb-4">
                 <div>
-                    <span class="text-xs font-mono font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
-                        {{ c.numero_contrato }}
-                    </span>
-                    <h3 class="text-lg font-bold text-slate-900 mt-1">{{ c.dependencia_cliente }}</h3>
-                    <p class="text-xs text-slate-500">Licitación: <strong>{{ c.numero_licitacion }}</strong></p>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs font-mono font-bold text-sky-800 bg-sky-50 px-2.5 py-1 rounded border border-sky-200">
+                            <i class="fa-solid fa-hashtag mr-0.5"></i> {{ c.numero_licitacion }}
+                        </span>
+                        <span class="text-xs font-mono text-slate-500">
+                            Contrato: {{ c.numero_contrato }}
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold
+                            {% if c.estatus == 'ACTIVA' %}bg-emerald-100 text-emerald-800
+                            {% elif c.estatus == 'POR_VENCER' %}bg-amber-100 text-amber-800
+                            {% else %}bg-slate-100 text-slate-800{% endif %}">
+                            ● {{ c.get_estatus_display }}
+                        </span>
+                    </div>
+
+                    <h2 class="text-lg font-bold text-slate-900 mt-2">
+                        <a href="{% url 'licitacion_detalle' c.id %}" class="hover:text-sky-700 transition">
+                            {{ c.titulo|default:c.dependencia_cliente }}
+                        </a>
+                    </h2>
+                    <p class="text-xs text-slate-600 mt-0.5">
+                        Dependencia / Cliente: <strong class="text-slate-800">{{ c.dependencia_cliente }}</strong>
+                    </p>
                 </div>
-                <div class="text-right">
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold {% if c.esta_vigente %}bg-emerald-100 text-emerald-800{% else %}bg-slate-100 text-slate-800{% endif %}">
-                        {% if c.esta_vigente %}✓ Contrato Vigente{% else %}Inactivo / Vencido{% endif %}
-                    </span>
-                    <div class="text-xs text-slate-500 mt-1">
-                        {{ c.fecha_inicio|date:"d/m/Y" }} al {{ c.fecha_fin|date:"d/m/Y" }}
+
+                <div class="flex flex-col sm:items-end gap-2">
+                    <a href="{% url 'licitacion_detalle' c.id %}" class="inline-flex items-center px-3.5 py-2 border border-sky-600 bg-sky-50 hover:bg-sky-100 text-sky-800 text-xs font-bold rounded-lg shadow-sm transition">
+                        <i class="fa-solid fa-folder-open mr-1.5"></i> Gestionar Licitación
+                    </a>
+                    <div class="text-xs text-slate-500">
+                        Vigencia: <strong>{{ c.fecha_inicio|date:"d/m/Y" }}</strong> al <strong>{{ c.fecha_fin|date:"d/m/Y" }}</strong>
                     </div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-                <div class="bg-slate-50 p-3 rounded-lg">
-                    <span class="text-slate-500 block">SLA Tiempo de Respuesta:</span>
-                    <strong class="text-slate-900 text-sm font-mono">{{ c.sla_horas_respuesta }} horas</strong>
+            <!-- Métricas Operativas (100% Técnicas, CERO Financieras) -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    <span class="text-slate-500 block text-[11px]">SLA Respuesta / Solución:</span>
+                    <strong class="text-slate-900 font-mono text-xs">{{ c.sla_horas_respuesta }}h / {{ c.sla_horas_solucion }}h contractuales</strong>
                 </div>
-                <div class="bg-slate-50 p-3 rounded-lg">
-                    <span class="text-slate-500 block">SLA Tiempo de Solución:</span>
-                    <strong class="text-slate-900 text-sm font-mono">{{ c.sla_horas_solucion }} horas</strong>
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    <span class="text-slate-500 block text-[11px]">Técnicos Asignados:</span>
+                    <strong class="text-sky-700 font-mono text-xs">{{ c.tecnicos_asignados.count }} técnico(s)</strong>
                 </div>
-                <div class="bg-slate-50 p-3 rounded-lg">
-                    <span class="text-slate-500 block">Penalización por Retraso:</span>
-                    <strong class="text-red-700 text-sm font-mono">${{ c.penalizacion_por_retraso }} MXN / hora</strong>
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    <span class="text-slate-500 block text-[11px]">Equipos Amparados:</span>
+                    <strong class="text-emerald-700 font-mono text-xs">{{ c.equipos.count }} activo(s)</strong>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    <span class="text-slate-500 block text-[11px]">Insumos Reservados:</span>
+                    <strong class="text-amber-700 font-mono text-xs">{{ c.insumos_reservados.count }} ítem(s)</strong>
                 </div>
             </div>
 
+            <!-- Sedes Vinculadas -->
+            {% if c.sedes.exists %}
             <div class="border-t border-slate-100 pt-3">
-                <h4 class="text-xs font-bold text-slate-700 uppercase mb-2">Sedes Vinculadas ({{ c.sedes.count }}):</h4>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <h3 class="text-xs font-bold text-slate-700 uppercase mb-2">Sedes Cubiertas ({{ c.sedes.count }}):</h3>
+                <div class="flex flex-wrap gap-2">
                     {% for sede in c.sedes.all %}
-                    <div class="border border-slate-200 rounded-lg p-2.5 text-xs">
-                        <div class="font-bold text-slate-900">{{ sede.nombre }}</div>
-                        <div class="text-slate-500 text-[11px]">{{ sede.direccion }}</div>
-                        <div class="text-slate-600 mt-1">
-                            <i class="fa-solid fa-user-tie mr-1 text-slate-400"></i> Enlace: {{ sede.enlace_responsable.get_full_name|default:sede.enlace_responsable.username|default:"No asignado" }}
-                        </div>
-                    </div>
+                    <span class="inline-flex items-center px-2.5 py-1 rounded text-xs bg-slate-100 text-slate-700 border border-slate-200">
+                        <i class="fa-solid fa-location-dot mr-1 text-slate-400"></i>
+                        {{ sede.nombre }}
+                    </span>
                     {% endfor %}
                 </div>
             </div>
+            {% endif %}
+
+        </div>
+        {% empty %}
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center text-slate-400">
+            <i class="fa-solid fa-file-circle-question text-4xl mb-3 text-slate-300"></i>
+            <h3 class="text-base font-bold text-slate-700">No se encontraron licitaciones</h3>
+            <p class="text-xs text-slate-500 mt-1">Intente con otro folio de búsqueda o registre una nueva licitación.</p>
         </div>
         {% endfor %}
     </div>

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Órdenes de Trabajo | Spartan PC GMAO{% endblock %}
+{% block title %}Órdenes de Trabajo | Gestion de Licitaciones{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
@@ -23,8 +23,9 @@
                 </a>
             {% endif %}
 
-            {% if user.role == 'ADMIN' or user.role == 'COORDINADOR' or user.role == 'RESPONSABLE_LICITACIONES' or user.is_superuser %}
-            <a href="{% url 'ordenes_crear' %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-xs font-bold rounded-lg text-white bg-emerald-600 hover:bg-emerald-700">
+            {# Botón de Nueva Orden: Exclusivo para el rol COORDINADOR #}
+            {% if user.role == 'COORDINADOR' or user.is_superuser %}
+            <a href="{% url 'ordenes_crear' %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-xs font-bold rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 transition">
                 <i class="fa-solid fa-plus mr-1.5"></i> Nueva Orden Preventiva
             </a>
             {% endif %}
@@ -38,42 +39,52 @@
                 <input type="hidden" name="agrupar" value="licitacion">
             {% endif %}
 
+            <!-- Búsqueda por Folio de Licitación -->
+            <div class="sm:col-span-3">
+                <label class="block text-xs font-semibold text-slate-700 mb-1">
+                    <i class="fa-solid fa-hashtag mr-1 text-sky-600"></i> Folio Licitación:
+                </label>
+                <input type="text" name="licitacion_folio" value="{{ licitacion_folio }}" placeholder="Ej. LIC-2026-0001" class="w-full px-3 py-2 text-xs font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+            </div>
+
             <!-- Búsqueda General -->
-            <div class="sm:col-span-4">
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Buscar por Folio, Equipo o Serie:</label>
+            <div class="sm:col-span-3">
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Buscar OT, Serie o Equipo:</label>
                 <div class="relative">
                     <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                         <i class="fa-solid fa-magnifying-glass text-xs"></i>
                     </span>
-                    <input type="text" name="q" value="{{ query }}" placeholder="Buscar número de serie, marca, modelo..." class="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    <input type="text" name="q" value="{{ query }}" placeholder="OT, serie, marca..." class="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
                 </div>
             </div>
 
             <!-- Búsqueda / Filtro Específico por Técnico de Mantenimiento -->
-            <div class="sm:col-span-3">
+            {% if user.role != 'TECNICO' %}
+            <div class="sm:col-span-2">
                 <label class="block text-xs font-semibold text-slate-700 mb-1">
-                    <i class="fa-solid fa-user-gear mr-1 text-sky-600"></i> Filtrar por Técnico:
+                    <i class="fa-solid fa-user-gear mr-1 text-sky-600"></i> Técnico:
                 </label>
-                <select name="tecnico" class="w-full py-2 px-3 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
-                    <option value="">-- Todos los Técnicos --</option>
+                <select name="tecnico" class="w-full py-2 px-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    <option value="">-- Todos --</option>
                     {% for t in tecnicos %}
                         <option value="{{ t.id }}" {% if tecnico_seleccionado == t.id|stringformat:"s" %}selected{% endif %}>
-                            {{ t.get_full_name|default:t.username }} ({{ t.phone|default:"Técnico" }})
+                            {{ t.get_full_name|default:t.username }}
                         </option>
                     {% endfor %}
                 </select>
             </div>
+            {% endif %}
 
             <!-- Filtro por Licitación / Contrato -->
-            <div class="sm:col-span-3">
+            <div class="{% if user.role == 'TECNICO' %}sm:col-span-4{% else %}sm:col-span-2{% endif %}">
                 <label class="block text-xs font-semibold text-slate-700 mb-1">
-                    <i class="fa-solid fa-file-contract mr-1 text-sky-600"></i> Licitación / Contrato:
+                    <i class="fa-solid fa-file-contract mr-1 text-sky-600"></i> Licitación:
                 </label>
-                <select name="licitacion" class="w-full py-2 px-3 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
-                    <option value="">-- Todos los Contratos --</option>
+                <select name="licitacion" class="w-full py-2 px-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    <option value="">-- Todas --</option>
                     {% for c in contratos %}
                         <option value="{{ c.id }}" {% if licitacion_seleccionada == c.id|stringformat:"s" %}selected{% endif %}>
-                            {{ c.numero_contrato }} - {{ c.dependencia_cliente|truncatechars:28 }}
+                            {{ c.numero_licitacion }} - {{ c.dependencia_cliente|truncatechars:18 }}
                         </option>
                     {% endfor %}
                 </select>
@@ -84,7 +95,7 @@
                 <button type="submit" class="w-full py-2 px-3 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow">
                     Filtrar
                 </button>
-                {% if query or tecnico_seleccionado or licitacion_seleccionada or tipo_seleccionado %}
+                {% if query or licitacion_folio or tecnico_seleccionado or licitacion_seleccionada %}
                     <a href="{% url 'ordenes_lista' %}{% if agrupado %}?agrupar=licitacion{% endif %}" class="py-2 px-3 border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-lg text-xs font-semibold" title="Limpiar Filtros">
                         <i class="fa-solid fa-rotate-left"></i>
                     </a>
@@ -192,10 +203,18 @@
                                         <span class="text-slate-600">{{ ot.fecha_estimada_entrega|date:"d/m/Y H:i" }}</span>
                                     {% endif %}
                                 </td>
-                                <td class="px-5 py-3 text-right whitespace-nowrap">
-                                    <a href="{% url 'orden_detalle' ot.id %}" class="px-2.5 py-1.5 border border-sky-300 text-sky-700 bg-sky-50 hover:bg-sky-100 rounded text-xs font-bold transition">
-                                        Reporte &rarr;
+                                <td class="px-5 py-3 text-right whitespace-nowrap space-x-1">
+                                    <a href="{% url 'orden_detalle' ot.id %}" class="inline-flex items-center px-2.5 py-1.5 border border-sky-300 text-sky-700 bg-sky-50 hover:bg-sky-100 rounded text-xs font-bold transition">
+                                        <i class="fa-solid fa-file-invoice mr-1"></i> Reporte
                                     </a>
+                                    {% if ot.estatus == 'CERRADA_CONFORME' %}
+                                        <a href="{% url 'orden_detalle' ot.id %}#firma" class="inline-flex items-center px-2 py-1.5 border border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded text-xs font-bold transition" title="Ver Conformidad">
+                                            <i class="fa-solid fa-signature"></i>
+                                        </a>
+                                        <a href="{% url 'orden_detalle' ot.id %}?print=1" target="_blank" class="inline-flex items-center px-2 py-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 rounded text-xs font-semibold transition" title="PDF">
+                                            <i class="fa-solid fa-file-pdf text-rose-600"></i>
+                                        </a>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -291,10 +310,22 @@
                                 {% endif %}
                             </td>
                             <!-- Acciones -->
-                            <td class="px-6 py-4 text-right whitespace-nowrap">
-                                <a href="{% url 'orden_detalle' ot.id %}" class="inline-flex items-center px-3 py-1.5 border border-sky-300 text-sky-700 bg-sky-50 hover:bg-sky-100 rounded text-xs font-bold transition shadow-sm">
+                            <td class="px-6 py-4 text-right whitespace-nowrap space-x-1">
+                                <a href="{% url 'orden_detalle' ot.id %}" class="inline-flex items-center px-2.5 py-1.5 border border-sky-300 text-sky-700 bg-sky-50 hover:bg-sky-100 rounded text-xs font-bold transition shadow-sm">
                                     <i class="fa-solid fa-file-invoice mr-1.5"></i> Reporte
                                 </a>
+                                {% if ot.estatus == 'CERRADA_CONFORME' %}
+                                    <a href="{% url 'orden_detalle' ot.id %}#firma" class="inline-flex items-center px-2.5 py-1.5 border border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded text-xs font-bold transition shadow-sm" title="Descargar / Ver Conformidad Firmada">
+                                        <i class="fa-solid fa-signature mr-1 text-emerald-600"></i> Conformidad
+                                    </a>
+                                    <a href="{% url 'orden_detalle' ot.id %}?print=1" target="_blank" class="inline-flex items-center px-2 py-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 rounded text-xs font-semibold transition shadow-sm" title="Exportar PDF / Imprimir">
+                                        <i class="fa-solid fa-file-pdf text-rose-600"></i>
+                                    </a>
+                                {% elif ot.estatus == 'PENDIENTE_VALIDACION' and user.role == 'ENLACE' %}
+                                    <a href="{% url 'orden_detalle' ot.id %}#firma" class="inline-flex items-center px-2.5 py-1.5 border border-amber-300 text-amber-800 bg-amber-100 hover:bg-amber-200 rounded text-xs font-bold transition shadow-sm animate-pulse" title="Firmar Conformidad de Servicio">
+                                        <i class="fa-solid fa-signature mr-1 text-amber-700"></i> Firmar
+                                    </a>
+                                {% endif %}
                             </td>
                         </tr>
                         {% empty %}

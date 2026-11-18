@@ -261,6 +261,12 @@ class OrdenTrabajo(models.Model):
             return self.fecha_real_entrega > self.fecha_estimada_entrega
         return timezone.now() > self.fecha_estimada_entrega
 
+    @property
+    def nombre_tecnico(self):
+        if self.tecnico_asignado:
+            return self.tecnico_asignado.get_full_name() or self.tecnico_asignado.username
+        return "Sin Asignar (Despacho pendiente)"
+
 
 class ChecklistPreventivo(models.Model):
     class CategoriaChecklist(models.TextChoices):

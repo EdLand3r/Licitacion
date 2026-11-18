@@ -2,19 +2,20 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from apps.authentication.decorators import role_required
 from apps.authentication.models import User
+from apps.authentication.multitenancy import get_user_equipos
 from .models import Equipo
 
 
 @login_required
 @role_required([User.Role.ADMIN, User.Role.COORDINADOR, User.Role.TECNICO, User.Role.RESPONSABLE_LICITACIONES, User.Role.ENLACE])
 def inventario_lista(request):
+    """
+    Inventario de Equipos de Cómputo con aislamiento multi-tenancy:
+    El Enlace de la Dependencia solo consulta en modo lectura los equipos amparados en su licitación.
+    """
     equipos_qs = (
-        Equipo.objects
+        get_user_equipos(request.user)
         .select_related('especificaciones', 'sede', 'contrato')
-        .all()
     )
-    # Regla RBAC para Enlace de la Dependencia: ver sólo equipos de sus sedes asignadas
-    if request.user.role == User.Role.ENLACE:
-        equipos_qs = equipos_qs.filter(sede__enlace_responsable=request.user)
-
     return render(request, 'inventory/equipo_lista.html', {'equipos': equipos_qs})
+

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Spartan PC | GMAO TI{% endblock %}</title>
+    <title>{% block title %}Gestion de Licitaciones | Plataforma Operativa{% endblock %}</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -47,15 +47,15 @@
                 <div class="flex items-center space-x-3">
                     <a href="{% url 'dashboard' %}" class="flex items-center space-x-2">
                         <div class="bg-brand-500 text-white p-2 rounded-lg shadow">
-                            <i class="fa-solid fa-server text-lg"></i>
+                            <i class="fa-solid fa-file-contract text-lg"></i>
                         </div>
                         <div>
-                            <span class="text-xl font-bold tracking-tight text-white">SPARTAN <span class="text-sky-400">PC</span></span>
-                            <span class="block text-[10px] text-slate-300 font-medium tracking-wider uppercase">GMAO Mantenimiento TI</span>
+                            <span class="text-xl font-bold tracking-tight text-white">GESTIÓN DE <span class="text-sky-400">LICITACIONES</span></span>
+                            <span class="block text-[10px] text-slate-300 font-medium tracking-wider uppercase">Plataforma Operativa de Mantenimiento TI</span>
                         </div>
                     </a>
 
-                    <!-- Desktop Nav Links (Renderizado Condicional por Rol RBAC) -->
+                    <!-- Desktop Nav Links (Renderizado Condicional por Rol RBAC y Multi-tenancy) -->
                     <nav class="hidden md:flex ml-8 space-x-1">
                         <a href="{% url 'dashboard' %}" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-brand-800 transition {% if request.resolver_match.url_name == 'dashboard' %}bg-brand-800 text-sky-300{% else %}text-slate-200{% endif %}">
                             <i class="fa-solid fa-gauge-high mr-1 text-xs"></i> Dashboard
@@ -63,28 +63,25 @@
 
                         {% if user.role != 'ALMACEN' %}
                         <a href="{% url 'ordenes_lista' %}" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-brand-800 transition {% if 'orden' in request.path %}bg-brand-800 text-sky-300{% else %}text-slate-200{% endif %}">
-                            <i class="fa-solid fa-screwdriver-wrench mr-1 text-xs"></i> {% if user.role == 'TECNICO' %}Mis Órdenes{% elif user.role == 'ENLACE' %}Órdenes Sede{% else %}Órdenes (OTs){% endif %}
+                            <i class="fa-solid fa-screwdriver-wrench mr-1 text-xs"></i> {% if user.role == 'TECNICO' %}Mis Órdenes{% elif user.role == 'ENLACE' %}Órdenes (Tickets){% else %}Órdenes (OTs){% endif %}
                         </a>
                         {% endif %}
 
-                        {% if user.role != 'ALMACEN' %}
+                        {% if user.role != 'ALMACEN' and user.role != 'ENLACE' and user.role != 'TECNICO' %}
                         <a href="{% url 'inventario_lista' %}" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-brand-800 transition {% if 'inventario' in request.path %}bg-brand-800 text-sky-300{% else %}text-slate-200{% endif %}">
-                            <i class="fa-solid fa-desktop mr-1 text-xs"></i> {% if user.role == 'ENLACE' %}Equipos Sede{% else %}Inventario Cómputo{% endif %}
+                            <i class="fa-solid fa-desktop mr-1 text-xs"></i> Inventario Cómputo
                         </a>
                         {% endif %}
 
                         {% if user.role == 'ADMIN' or user.role == 'ALMACEN' or user.role == 'COORDINADOR' or user.role == 'TECNICO' or user.is_superuser %}
-                        <a href="{% url 'almacen_lista' %}" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-brand-800 transition {% if 'almacen' in request.path and 'insumos' not in request.path %}bg-brand-800 text-sky-300{% else %}text-slate-200{% endif %}">
-                            <i class="fa-solid fa-boxes-stacked mr-1 text-xs"></i> Refacciones
-                        </a>
                         <a href="{% url 'insumos_tecnicos' %}" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-brand-800 transition {% if 'insumos-tecnicos' in request.path %}bg-brand-800 text-sky-300{% else %}text-slate-200{% endif %}">
                             <i class="fa-solid fa-toolbox mr-1 text-xs"></i> {% if user.role == 'TECNICO' %}Mi Kit Insumos{% else %}Insumos Técnicos{% endif %}
                         </a>
                         {% endif %}
 
-                        {% if user.role == 'ADMIN' or user.role == 'RESPONSABLE_LICITACIONES' or user.role == 'COORDINADOR' or user.is_superuser %}
+                        {% if user.role == 'ADMIN' or user.role == 'RESPONSABLE_LICITACIONES' or user.role == 'COORDINADOR' or user.role == 'ENLACE' or user.role == 'TECNICO' or user.is_superuser %}
                         <a href="{% url 'contratos_lista' %}" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-brand-800 transition {% if 'contratos' in request.path %}bg-brand-800 text-sky-300{% else %}text-slate-200{% endif %}">
-                            <i class="fa-solid fa-file-contract mr-1 text-xs"></i> Contratos SLA
+                            <i class="fa-solid fa-file-contract mr-1 text-xs"></i> {% if user.role == 'ENLACE' %}Contratos SLA (Licitación){% else %}Licitaciones{% endif %}
                         </a>
                         {% endif %}
 
@@ -133,15 +130,16 @@
         <div x-show="openMobile" class="md:hidden bg-brand-950 px-2 pt-2 pb-3 space-y-1 border-t border-brand-800">
             <a href="{% url 'dashboard' %}" class="block px-3 py-2 rounded-md text-base font-medium text-slate-200 hover:bg-brand-800">Dashboard</a>
             {% if user.role != 'ALMACEN' %}
-            <a href="{% url 'ordenes_lista' %}" class="block px-3 py-2 rounded-md text-base font-medium text-slate-200 hover:bg-brand-800">Órdenes (OTs)</a>
+            <a href="{% url 'ordenes_lista' %}" class="block px-3 py-2 rounded-md text-base font-medium text-slate-200 hover:bg-brand-800">{% if user.role == 'ENLACE' %}Mis Órdenes (Tickets){% else %}Órdenes (OTs){% endif %}</a>
+            {% if user.role != 'ENLACE' %}
             <a href="{% url 'inventario_lista' %}" class="block px-3 py-2 rounded-md text-base font-medium text-slate-200 hover:bg-brand-800">Inventario Cómputo</a>
             {% endif %}
+            {% endif %}
             {% if user.role == 'ADMIN' or user.role == 'ALMACEN' or user.role == 'COORDINADOR' or user.role == 'TECNICO' or user.is_superuser %}
-            <a href="{% url 'almacen_lista' %}" class="block px-3 py-2 rounded-md text-base font-medium text-slate-200 hover:bg-brand-800">Refacciones</a>
             <a href="{% url 'insumos_tecnicos' %}" class="block px-3 py-2 rounded-md text-base font-medium text-slate-200 hover:bg-brand-800">{% if user.role == 'TECNICO' %}Mi Kit de Insumos{% else %}Insumos Técnicos{% endif %}</a>
             {% endif %}
-            {% if user.role == 'ADMIN' or user.role == 'RESPONSABLE_LICITACIONES' or user.role == 'COORDINADOR' or user.is_superuser %}
-            <a href="{% url 'contratos_lista' %}" class="block px-3 py-2 rounded-md text-base font-medium text-slate-200 hover:bg-brand-800">Contratos SLA</a>
+            {% if user.role == 'ADMIN' or user.role == 'RESPONSABLE_LICITACIONES' or user.role == 'COORDINADOR' or user.role == 'ENLACE' or user.role == 'TECNICO' or user.is_superuser %}
+            <a href="{% url 'contratos_lista' %}" class="block px-3 py-2 rounded-md text-base font-medium text-slate-200 hover:bg-brand-800">Licitaciones</a>
             {% endif %}
             {% if user.is_authenticated %}
                 <div class="border-t border-brand-800 pt-2 pb-1">
@@ -159,13 +157,17 @@
     <div class="bg-white border-b border-slate-200 px-4 sm:px-6 lg:px-8 py-2 text-xs text-slate-600 flex justify-between items-center no-print">
         <div class="flex items-center space-x-2">
             <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span><strong>Licitación Activa:</strong> CT-ITSE-2026-088 (Instituto Tecnológico Superior de Escárcega)</span>
+            <span><strong>Licitación:</strong> {% if licitacion_activa %}{{ licitacion_activa.numero_contrato }} ({{ licitacion_activa.dependencia_cliente }}){% elif user.dependencia_o_empresa %}{{ user.dependencia_o_empresa }}{% else %}CT-ITSE-2026-001 (Instituto Tecnológico Superior de Escárcega){% endif %}</span>
             <span class="text-slate-300">|</span>
-            <span><strong>SLA Solución:</strong> 24h contractuales</span>
+            <span><strong>SLA Solución:</strong> {% if licitacion_activa %}{{ licitacion_activa.sla_horas_solucion }}h contractuales{% else %}24h contractuales{% endif %}</span>
         </div>
+        {% if user.role == 'ADMIN' or user.role == 'COORDINADOR' or user.role == 'RESPONSABLE_LICITACIONES' or user.is_superuser %}
         <div class="hidden sm:block text-slate-500">
-            <i class="fa-regular fa-clock mr-1"></i> Auditoría y Monitoreo en Tiempo Real
+            <a href="{% url 'auditoria_view' %}" class="hover:text-slate-800 transition">
+                <i class="fa-regular fa-clock mr-1"></i> Auditoría y Monitoreo en Tiempo Real
+            </a>
         </div>
+        {% endif %}
     </div>
 
     <!-- Main Content Area -->
@@ -190,7 +192,7 @@
     <!-- Footer -->
     <footer class="bg-white border-t border-slate-200 py-4 mt-auto no-print">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs text-slate-500">
-            <span>Sistema GMAO Spartan PC &copy; 2026 &mdash; Basado en Requerimientos de Licitación TI &bull; ITSE</span>
+            <span>Gestion de Licitaciones &copy; 2026 &mdash; Basado en Requerimientos de Licitación TI &bull; ITSE</span>
         </div>
     </footer>
 

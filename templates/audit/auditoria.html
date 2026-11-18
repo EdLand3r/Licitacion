@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+
+{% block title %}Auditoría y Monitoreo en Tiempo Real | Gestion de Licitaciones{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
+        <div>
+            <div class="flex items-center space-x-2">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-800">
+                    <i class="fa-solid fa-shield-halved mr-1.5"></i> Supervisión & Auditoría
+                </span>
+                <span class="text-xs text-slate-400">|</span>
+                <span class="text-xs text-slate-500 font-medium">SRS IEEE 830 - Trazabilidad Integral</span>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight mt-1">Auditoría y Monitoreo en Tiempo Real</h1>
+            <p class="text-sm text-slate-500">Supervisión de transacciones de inventario, dotación de técnicos y sellos de conformidad de clientes.</p>
+        </div>
+    </div>
+
+    <!-- Grid de Auditoría -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Panel 1: Movimientos de Almacén Central -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                <h3 class="text-sm font-bold text-slate-800 flex items-center">
+                    <i class="fa-solid fa-boxes-stacked mr-2 text-sky-600"></i> Movimientos en Almacén Central
+                </h3>
+                <span class="text-xs text-slate-500 font-mono">Últimos registros</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200 text-xs text-left">
+                    <thead class="bg-slate-100 text-slate-600 font-semibold">
+                        <tr>
+                            <th class="px-4 py-2.5">Fecha</th>
+                            <th class="px-4 py-2.5">Tipo</th>
+                            <th class="px-4 py-2.5">Refacción</th>
+                            <th class="px-4 py-2.5">Cant.</th>
+                            <th class="px-4 py-2.5">Responsable</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for mov in movimientos_almacen %}
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-2 text-slate-500 font-mono">{{ mov.created_at|date:"d/m/Y H:i" }}</td>
+                            <td class="px-4 py-2">
+                                <span class="px-1.5 py-0.5 rounded font-medium text-[10px] {% if mov.tipo_movimiento == 'ENTRADA' %}bg-emerald-100 text-emerald-800{% else %}bg-amber-100 text-amber-800{% endif %}">
+                                    {{ mov.get_tipo_movimiento_display }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-2 font-medium text-slate-800">{{ mov.refaccion.nombre }}</td>
+                            <td class="px-4 py-2 font-bold text-slate-900">{{ mov.cantidad }}</td>
+                            <td class="px-4 py-2 text-slate-600">{{ mov.responsable.username|default:"Sistema" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-4 py-6 text-center text-slate-400">Sin movimientos registrados.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Panel 2: Firmas Digitales y Sellos de Conformidad -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                <h3 class="text-sm font-bold text-slate-800 flex items-center">
+                    <i class="fa-solid fa-signature mr-2 text-emerald-600"></i> Sellos Criptográficos de Conformidad
+                </h3>
+                <span class="text-xs text-slate-500 font-mono">Validados legalmente</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200 text-xs text-left">
+                    <thead class="bg-slate-100 text-slate-600 font-semibold">
+                        <tr>
+                            <th class="px-4 py-2.5">OT</th>
+                            <th class="px-4 py-2.5">Firmante</th>
+                            <th class="px-4 py-2.5">Rol / Tipo</th>
+                            <th class="px-4 py-2.5">Sello Hash SHA-256</th>
+                            <th class="px-4 py-2.5">Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for f in firmas %}
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-2 font-mono font-bold text-sky-700">
+                                <a href="{% url 'orden_detalle' f.orden.id %}" class="hover:underline">{{ f.orden.numero_orden }}</a>
+                            </td>
+                            <td class="px-4 py-2 text-slate-800 font-medium">{{ f.nombre_firmante }}</td>
+                            <td class="px-4 py-2">
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold {% if f.tipo_firmante == 'ENLACE_CLIENTE' %}bg-purple-100 text-purple-800{% else %}bg-sky-100 text-sky-800{% endif %}">
+                                    {{ f.get_tipo_firmante_display }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-2 font-mono text-[10px] text-slate-500 truncate max-w-[140px]" title="{{ f.hash_seguridad }}">
+                                {{ f.hash_seguridad|default:"SHA256:Generado" }}
+                            </td>
+                            <td class="px-4 py-2 text-slate-500 font-mono">{{ f.fecha_firmado|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-4 py-6 text-center text-slate-400">Sin firmas registradas.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
